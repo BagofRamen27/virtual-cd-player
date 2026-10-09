@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { leather } from './materials';
 
 /** Headphones resting on the table. `active` gives them a soft highlight when they're the live output. */
 export function Headphones3D({ kind, active }: { kind: string; active: boolean }) {
@@ -21,19 +22,31 @@ export function Headphones3D({ kind, active }: { kind: string; active: boolean }
   }
   return (
     <group rotation={[-Math.PI / 2 + 0.05, 0, 0]} position={[0, 0.1, 0]}>
+      {/* spring-steel band with a padded leather top */}
       <mesh castShadow>
-        <torusGeometry args={[0.42, 0.04, 12, 48, Math.PI]} />
-        <meshStandardMaterial color="#1f1c1a" roughness={0.6} />
+        <torusGeometry args={[0.44, 0.012, 8, 64, Math.PI]} />
+        <meshStandardMaterial color="#8d877e" metalness={1} roughness={0.25} />
+      </mesh>
+      <mesh castShadow rotation={[0, 0, Math.PI * 0.15]}>
+        <torusGeometry args={[0.42, 0.035, 12, 48, Math.PI * 0.7]} />
+        <meshStandardMaterial color="#1f1c1a" roughness={0.7} bumpMap={leather()} bumpScale={0.8} />
       </mesh>
       {[-0.42, 0.42].map((x) => (
         <group key={x} position={[x, -0.02, 0]}>
-          <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
-            <cylinderGeometry args={[0.17, 0.17, 0.12, 32]} />
-            <meshStandardMaterial color="#2a2623" roughness={0.45} metalness={0.2} emissive="#E8B66B" emissiveIntensity={glow} />
+          {/* metal yoke */}
+          <mesh position={[0, 0.17, 0]}>
+            <boxGeometry args={[0.02, 0.1, 0.25]} />
+            <meshStandardMaterial color="#8d877e" metalness={1} roughness={0.3} />
           </mesh>
-          <mesh rotation={[0, 0, Math.PI / 2]} position={[x > 0 ? -0.07 : 0.07, 0, 0]}>
-            <torusGeometry args={[0.13, 0.04, 10, 32]} />
-            <meshStandardMaterial color="#141210" roughness={0.9} side={THREE.DoubleSide} />
+          {/* cup */}
+          <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[0.17, 0.16, 0.11, 48]} />
+            <meshPhysicalMaterial color="#25211e" roughness={0.4} metalness={0.15} clearcoat={0.5} emissive="#E8B66B" emissiveIntensity={glow} />
+          </mesh>
+          {/* leather ear pad */}
+          <mesh rotation={[0, Math.PI / 2, 0]} position={[x > 0 ? -0.075 : 0.075, 0, 0]}>
+            <torusGeometry args={[0.12, 0.045, 14, 40]} />
+            <meshStandardMaterial color="#171513" roughness={0.65} bumpMap={leather()} bumpScale={1.2} side={THREE.DoubleSide} />
           </mesh>
         </group>
       ))}

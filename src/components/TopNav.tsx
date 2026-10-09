@@ -64,9 +64,9 @@ export function TopNav() {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line px-4 sm:px-6">
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-6">
         <a href="/" className="flex items-baseline gap-2 rounded-md" aria-label="DiscDeck home">
-          <span className="font-display text-[26px] font-light leading-none tracking-tight">DiscDeck</span>
+          <span className="font-display text-[22px] font-light leading-none tracking-tight sm:text-[26px]">DiscDeck</span>
         </a>
         <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
           <button type="button" onClick={() => jump('library', 'library')} className="rounded-full px-3 py-1.5 text-sm text-ink-soft hover:bg-surface-2/60">
@@ -83,10 +83,15 @@ export function TopNav() {
               type="button"
               role="tab"
               aria-selected={view === v}
+              aria-label={v === 'player' ? 'Player' : 'Hi-Fi Room'}
               onClick={() => setView(v)}
               className={`h-8 rounded-full px-3 text-[13px] font-medium transition-colors ${view === v ? 'bg-ink text-bg' : 'text-ink-soft hover:text-ink'}`}
             >
-              {v === 'player' ? 'Player' : 'Hi-Fi Room'}
+              {v === 'player' ? 'Player' : (
+                <>
+                  Hi-Fi<span className="hidden sm:inline"> Room</span>
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -97,7 +102,9 @@ export function TopNav() {
             <Pill tone="warn">Demo mode</Pill>
           </span>
         )}
-        <SpotifyStatus />
+        <span className="hidden sm:inline-flex">
+          <SpotifyStatus />
+        </span>
         <IconButton label="Settings" onClick={() => setUi({ settingsOpen: true })}>
           <Icon name="settings" />
         </IconButton>

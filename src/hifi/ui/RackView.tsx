@@ -6,6 +6,7 @@ import { formatTime } from '../../lib/art';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { currentRoute, useHifi } from '../store';
 import { Catalog } from './Catalog';
+import { PRESETS } from '../store';
 import { Inspector } from './Inspector';
 import { Tutorial } from './Tutorial';
 import { WiringPanel } from './WiringPanel';
@@ -54,9 +55,9 @@ function MiniTransport() {
   const route = currentRoute(useHifi());
   const out = route.output;
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line bg-surface/80 px-4 py-3 backdrop-blur">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line bg-surface/85 px-4 py-3 shadow-[0_-12px_30px_-24px_rgba(37,31,27,0.5)] backdrop-blur">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="h-11 w-11 shrink-0 overflow-hidden rounded" style={{ background: album?.tint ?? 'var(--surface-2)' }}>
+        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-[5px] shadow-[0_6px_14px_-8px_rgba(37,31,27,0.6)]" style={{ background: album?.tint ?? 'var(--surface-2)' }}>
           {album?.coverUrl && <img src={album.coverUrl} alt="" className="h-full w-full object-cover" />}
         </div>
         <div className="min-w-0">
@@ -73,6 +74,26 @@ function MiniTransport() {
   );
 }
 
+/** Swipeable one-tap setups for small screens. */
+function PresetStrip() {
+  const apply = useHifi((s) => s.applyPreset);
+  return (
+    <div className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]" role="list" aria-label="Setups">
+      {PRESETS.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          role="listitem"
+          onClick={() => apply(p.id)}
+          className="shrink-0 rounded-full border border-line bg-surface/80 px-3.5 py-2 text-xs font-medium text-ink-soft shadow-[0_6px_16px_-12px_rgba(37,31,27,0.5)] hover:border-accent/40"
+        >
+          {p.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function RackView() {
   const webgl = useMemo(() => hasWebGL(), []);
   const force2D = usePlayer((s) => s.settings.force2D);
@@ -83,9 +104,10 @@ export function RackView() {
   const show3D = webgl && !force2D;
 
   const centre = (
-    <div className="flex min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-        <div role="tablist" aria-label="Room view" className="flex gap-1">
+    <div className="relative flex h-full min-h-0 flex-col" style={{ background: 'var(--stage)' }}>
+      {/* Floating controls over a full-bleed scene */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
+        <div role="tablist" aria-label="Room view" className="pointer-events-auto flex gap-1 rounded-full border border-line bg-surface/75 p-1 shadow-[0_8px_24px_-12px_rgba(37,31,27,0.45)] backdrop-blur-md">
           {(['room', 'wiring'] as const).map((t) => (
             <button
               key={t}
@@ -93,29 +115,42 @@ export function RackView() {
               type="button"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`h-8 rounded-full px-3 text-xs font-medium ${tab === t ? 'bg-ink text-bg' : 'text-ink-soft hover:bg-surface-2/60'}`}
+              className={`h-8 rounded-full px-3.5 text-xs font-medium transition-colors ${tab === t ? 'bg-ink text-bg shadow-sm' : 'text-ink-soft hover:bg-surface-2/70'}`}
             >
-              {t === 'room' ? 'Listening room' : 'Wiring (back panels)'}
+              {t === 'room' ? (
+                <>
+                  <span className="sm:hidden">Room</span>
+                  <span className="hidden sm:inline">Listening room</span>
+                </>
+              ) : (
+                <>
+                  <span className="sm:hidden">Wiring</span>
+                  <span className="hidden sm:inline">Wiring · back panels</span>
+                </>
+              )}
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-xs text-ink-soft">
+        <label className="pointer-events-auto flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface/75 px-3.5 text-xs text-ink-soft shadow-[0_8px_24px_-12px_rgba(37,31,27,0.45)] backdrop-blur-md">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="accent-[var(--accent)]" />
-          Play through this rack
+          <span className="sm:hidden">Use rack</span>
+          <span className="hidden sm:inline">Play through this rack</span>
         </label>
       </div>
-      <div className="relative min-h-0 flex-1" style={{ background: 'var(--stage)' }}>
+      <div className="relative min-h-0 flex-1">
         {tab === 'room' && show3D ? (
-          <Boundary fallback={<div className="p-6"><WiringPanel /></div>}>
+          <Boundary fallback={<div className="p-6 pt-16"><WiringPanel /></div>}>
             <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted">Setting up the room…</div>}>
               <div className="absolute inset-0">
                 <RackScene />
               </div>
             </Suspense>
-            <p className="pointer-events-none absolute bottom-3 left-4 text-[11px] text-muted">Drag knobs to turn · scroll to nudge · double-click to reset · drag empty space to look around</p>
+            <p className="pointer-events-none absolute bottom-3 left-3 hidden rounded-full sm:block bg-surface/60 px-3 py-1 text-[11px] text-ink-soft backdrop-blur-md">
+              Drag knobs to turn · scroll to nudge · double-click to reset · drag the room to look around
+            </p>
           </Boundary>
         ) : (
-          <div className="h-full overflow-y-auto p-4">
+          <div className="h-full overflow-y-auto p-4 pt-16">
             <WiringPanel />
             {!show3D && tab === 'room' && <p className="mt-3 text-xs text-muted">3D unavailable — using the 2D back-panel view.</p>}
           </div>
@@ -126,16 +161,17 @@ export function RackView() {
 
   if (!desktop) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <div className="h-[48vh] shrink-0">{centre}</div>
-        <div className="space-y-4 p-4">
-          <Tutorial />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="h-[46vh] shrink-0">{centre}</div>
+          <PresetStrip />
+          <div className="space-y-4 px-4 pt-2">
+            <Tutorial />
+          </div>
+          <Inspector />
+          <Catalog />
         </div>
-        <Inspector />
-        <Catalog />
-        <div className="sticky bottom-0">
-          <MiniTransport />
-        </div>
+        <MiniTransport />
       </div>
     );
   }

@@ -7,6 +7,7 @@ import { currentAmpState, rackOf, useHifi } from '../store';
 import { readMeters, toDb } from '../meters';
 import { defaultAmpState } from '../catalog';
 import { Knob3D, PanelButton } from './Knob3D';
+import { brushedBump, brushedRoughness, plasticBump, ventSlots, woodColor, woodRoughness } from './materials';
 
 export const AMP_SIZE = { w: 2.4, h: 0.55, d: 1.5 };
 const FACE_Z = AMP_SIZE.d / 2 + 0.004;
@@ -34,6 +35,7 @@ export const AMP_JACKS: Record<string, [number, number, number]> = {
   phones: [L.phones[0], L.phones[1], FACE_Z + 0.02],
 };
 
+/** Printed legends and scales (transparent), layered over the brushed-aluminium faceplate. */
 function faceplateTexture(): THREE.CanvasTexture {
   const W = 2048;
   const H = Math.round((W * AMP_SIZE.h) / AMP_SIZE.w);
@@ -41,18 +43,6 @@ function faceplateTexture(): THREE.CanvasTexture {
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
-  const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#e9e6df');
-  grad.addColorStop(1, '#c9c4ba');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, W, H);
-  // brushed lines
-  for (let y = 0; y < H; y += 2) {
-    g.fillStyle = `rgba(255,255,255,${Math.random() * 0.08})`;
-    g.fillRect(0, y, W, 1);
-    g.fillStyle = `rgba(0,0,0,${Math.random() * 0.04})`;
-    g.fillRect(0, y + 1, W, 1);
-  }
   const px = (x: number, y: number): [number, number] => [((x + AMP_SIZE.w / 2) / AMP_SIZE.w) * W, ((AMP_SIZE.h / 2 - y) / AMP_SIZE.h) * H];
   const text = (s: string, x: number, y: number, size = 20, weight = 600, color = '#3b332c') => {
     const [cx, cy] = px(x, y);
@@ -155,24 +145,38 @@ function VuMeter({ position, channel, on }: { position: readonly [number, number
   const h = 0.18;
   return (
     <group position={[position[0], position[1], FACE_Z + 0.002]}>
-      <mesh>
-        <planeGeometry args={[w + 0.02, h + 0.02]} />
-        <meshStandardMaterial color="#1e1915" />
+      {/* chrome bezel */}
+      <mesh position={[0, 0, -0.002]}>
+        <boxGeometry args={[w + 0.035, h + 0.035, 0.012]} />
+        <meshPhysicalMaterial color="#d8d4cc" metalness={1} roughness={0.15} />
       </mesh>
-      <mesh position={[0, 0, 0.001]}>
+      <mesh position={[0, 0, 0.0045]}>
+        <planeGeometry args={[w + 0.01, h + 0.01]} />
+        <meshStandardMaterial color="#120e0b" />
+      </mesh>
+      <mesh position={[0, 0, 0.005]}>
         <planeGeometry args={[w, h]} />
-        <meshBasicMaterial map={tex} toneMapped={false} color={on ? '#ffffff' : '#6d5f52'} />
+        <meshBasicMaterial map={tex} toneMapped={false} color={on ? '#fff3dc' : '#5e5146'} />
       </mesh>
-      <group ref={needle} position={[0, -h / 2 - 0.03, 0.004]}>
-        <mesh position={[0, 0.11, 0]}>
-          <boxGeometry args={[0.004, 0.2, 0.002]} />
+      <group ref={needle} position={[0, -h / 2 - 0.03, 0.008]}>
+        <mesh position={[0, 0.1, 0]}>
+          <boxGeometry args={[0.0035, 0.18, 0.002]} />
           <meshBasicMaterial color="#1b1410" />
         </mesh>
+        <mesh position={[0, 0.2, 0]}>
+          <boxGeometry args={[0.0035, 0.025, 0.002]} />
+          <meshBasicMaterial color="#b5371f" />
+        </mesh>
       </group>
-      {/* glass */}
-      <mesh position={[0, 0, 0.008]}>
+      {/* inner shadow along the top edge of the window */}
+      <mesh position={[0, h / 2 - 0.012, 0.009]}>
+        <planeGeometry args={[w, 0.024]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.25} />
+      </mesh>
+      {/* glass with a faint reflection */}
+      <mesh position={[0, 0, 0.012]}>
         <planeGeometry args={[w, h]} />
-        <meshPhysicalMaterial transparent opacity={0.12} roughness={0.05} clearcoat={1} color="#ffffff" />
+        <meshPhysicalMaterial transparent opacity={0.08} roughness={0.04} clearcoat={1} color="#ffffff" envMapIntensity={2} />
       </mesh>
     </group>
   );
@@ -182,14 +186,58 @@ function RcaPair({ position, label }: { position: [number, number, number]; labe
   return (
     <group position={position} name={label}>
       {[
-        ['#f2efe8', -0.045],
-        ['#c0392b', 0.045],
+        ['#efeae0', -0.05],
+        ['#c0392b', 0.05],
       ].map(([color, x]) => (
-        <mesh key={String(x)} position={[x as number, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.022, 0.022, 0.04, 20]} />
-          <meshStandardMaterial color={color as string} metalness={0.5} roughness={0.35} />
-        </mesh>
+        <group key={String(x)} position={[x as number, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh>
+            <cylinderGeometry args={[0.026, 0.026, 0.01, 24]} />
+            <meshStandardMaterial color={color as string} roughness={0.45} />
+          </mesh>
+          <mesh position={[0, 0.02, 0]}>
+            <cylinderGeometry args={[0.017, 0.017, 0.04, 24, 1, true]} />
+            <meshStandardMaterial color="#d6b25e" metalness={1} roughness={0.22} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0, 0.018, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.03, 12]} />
+            <meshStandardMaterial color="#d6b25e" metalness={1} roughness={0.25} />
+          </mesh>
+        </group>
       ))}
+    </group>
+  );
+}
+
+function BindingPost({ position, color }: { position: [number, number, number]; color: string }) {
+  return (
+    <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh>
+        <cylinderGeometry args={[0.022, 0.024, 0.02, 24]} />
+        <meshStandardMaterial color={color} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[0.009, 0.009, 0.04, 16]} />
+        <meshStandardMaterial color="#d6b25e" metalness={1} roughness={0.25} />
+      </mesh>
+      <mesh position={[0, 0.05, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 0.022, 6]} />
+        <meshStandardMaterial color={color} roughness={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
+function Screw({ position, rotation = [0, 0, 0] }: { position: [number, number, number]; rotation?: [number, number, number] }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh>
+        <cylinderGeometry args={[0.014, 0.014, 0.005, 16]} />
+        <meshStandardMaterial color="#8b857b" metalness={0.9} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.003, 0]}>
+        <boxGeometry args={[0.018, 0.002, 0.003]} />
+        <meshStandardMaterial color="#2a2522" />
+      </mesh>
     </group>
   );
 }
@@ -209,15 +257,43 @@ export function Amp3D() {
 
   return (
     <group>
-      {/* Chassis */}
-      <RoundedBox args={[AMP_SIZE.w, AMP_SIZE.h, AMP_SIZE.d]} radius={0.025} smoothness={3} position={[0, AMP_SIZE.h / 2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#2b2622" metalness={0.5} roughness={0.55} />
-      </RoundedBox>
-      {/* Faceplate */}
+      {/* Steel chassis */}
+      <mesh position={[0, AMP_SIZE.h / 2, -0.015]} castShadow receiveShadow>
+        <boxGeometry args={[AMP_SIZE.w, AMP_SIZE.h, AMP_SIZE.d - 0.03]} />
+        <meshStandardMaterial color="#26211e" metalness={0.45} roughness={0.55} bumpMap={plasticBump()} bumpScale={0.3} />
+      </mesh>
+      {/* Vent slots in the lid */}
+      <mesh position={[0.1, AMP_SIZE.h + 0.0008, -0.32]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[1.5, 0.55]} />
+        <meshBasicMaterial color="#070605" alphaMap={ventSlots()} transparent depthWrite={false} />
+      </mesh>
+      {[-1, 1].flatMap((sx) => [-1, 1].map((sz) => <Screw key={`${sx}${sz}`} position={[sx * (AMP_SIZE.w / 2 - 0.07), AMP_SIZE.h + 0.002, sz * (AMP_SIZE.d / 2 - 0.09)]} />))}
+      {/* Walnut side cheeks */}
+      {[-1, 1].map((sx) => (
+        <RoundedBox key={sx} args={[0.07, AMP_SIZE.h + 0.02, AMP_SIZE.d]} radius={0.012} smoothness={2} position={[sx * (AMP_SIZE.w / 2 + 0.035), AMP_SIZE.h / 2 + 0.005, 0]} castShadow receiveShadow>
+          <meshPhysicalMaterial map={woodColor('walnut', 8)} roughnessMap={woodRoughness(8)} roughness={1} clearcoat={0.35} clearcoatRoughness={0.3} />
+        </RoundedBox>
+      ))}
+      {/* Machined faceplate (5 mm panel gap to the cheeks) */}
+      <mesh position={[0, AMP_SIZE.h / 2, AMP_SIZE.d / 2 - 0.015]} castShadow receiveShadow>
+        <boxGeometry args={[AMP_SIZE.w - 0.012, AMP_SIZE.h - 0.006, 0.03]} />
+        <meshPhysicalMaterial
+          color="#dcd6cb"
+          metalness={0.82}
+          roughness={1}
+          roughnessMap={brushedRoughness(2)}
+          bumpMap={brushedBump(2)}
+          bumpScale={0.35}
+          anisotropy={0.75}
+          clearcoat={0.12}
+          clearcoatRoughness={0.4}
+        />
+      </mesh>
       <group position={[0, AMP_SIZE.h / 2, 0]}>
-        <mesh position={[0, 0, z]} receiveShadow>
+        {/* Printed legends */}
+        <mesh position={[0, 0, AMP_SIZE.d / 2 + 0.001]}>
           <planeGeometry args={[AMP_SIZE.w - 0.02, AMP_SIZE.h - 0.02]} />
-          <meshPhysicalMaterial map={face} metalness={0.55} roughness={0.38} anisotropy={0.6} />
+          <meshStandardMaterial map={face} transparent roughness={0.6} metalness={0.2} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
         </mesh>
         <VuMeter position={L.vuL} channel="L" on={state.power} />
         <VuMeter position={L.vuR} channel="R" on={state.power} />
@@ -281,24 +357,42 @@ export function Amp3D() {
         <RcaPair position={AMP_JACKS['in-cd']} label="CD in" />
         <RcaPair position={AMP_JACKS['in-aux']} label="AUX in" />
         {[
-          ['#c0392b', 0.62],
-          ['#1b1410', 0.7],
-          ['#c0392b', 0.78],
-          ['#1b1410', 0.86],
+          ['#b5371f', 0.62],
+          ['#1b1714', 0.7],
+          ['#b5371f', 0.8],
+          ['#1b1714', 0.88],
         ].map(([color, x]) => (
-          <mesh key={String(x)} position={[x as number, 0.05, -AMP_SIZE.d / 2 - 0.025]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.018, 0.018, 0.05, 16]} />
-            <meshStandardMaterial color={color as string} metalness={0.3} roughness={0.4} />
-          </mesh>
+          <BindingPost key={String(x)} position={[x as number, 0.05, -AMP_SIZE.d / 2]} color={color as string} />
         ))}
+        {/* IEC power inlet */}
+        <group position={[-0.1, -0.02, -AMP_SIZE.d / 2 - 0.006]}>
+          <mesh>
+            <boxGeometry args={[0.12, 0.08, 0.02]} />
+            <meshStandardMaterial color="#121010" roughness={0.6} />
+          </mesh>
+          {[-0.03, 0, 0.03].map((x) => (
+            <mesh key={x} position={[x, 0, -0.012]}>
+              <boxGeometry args={[0.008, 0.024, 0.006]} />
+              <meshStandardMaterial color="#9c968c" metalness={0.9} roughness={0.3} />
+            </mesh>
+          ))}
+        </group>
+        <Screw position={[-1.0, 0.18, -AMP_SIZE.d / 2 - 0.003]} rotation={[-Math.PI / 2, 0, 0]} />
+        <Screw position={[1.0, 0.18, -AMP_SIZE.d / 2 - 0.003]} rotation={[-Math.PI / 2, 0, 0]} />
       </group>
-      {/* Feet */}
+      {/* Rubber feet with chrome trim rings */}
       {[-1, 1].flatMap((sx) =>
         [-1, 1].map((sz) => (
-          <mesh key={`${sx}${sz}`} position={[sx * (AMP_SIZE.w / 2 - 0.15), -0.01, sz * (AMP_SIZE.d / 2 - 0.15)]}>
-            <cylinderGeometry args={[0.06, 0.06, 0.03, 20]} />
-            <meshStandardMaterial color="#1a1613" />
-          </mesh>
+          <group key={`${sx}${sz}`} position={[sx * (AMP_SIZE.w / 2 - 0.18), -0.012, sz * (AMP_SIZE.d / 2 - 0.16)]}>
+            <mesh>
+              <cylinderGeometry args={[0.065, 0.07, 0.03, 24]} />
+              <meshStandardMaterial color="#1a1715" roughness={0.95} />
+            </mesh>
+            <mesh position={[0, 0.012, 0]}>
+              <cylinderGeometry args={[0.072, 0.072, 0.008, 24]} />
+              <meshStandardMaterial color="#b9b3a9" metalness={1} roughness={0.2} />
+            </mesh>
+          </group>
         )),
       )}
     </group>

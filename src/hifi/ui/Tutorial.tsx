@@ -31,7 +31,7 @@ export function Tutorial() {
       ];
 
   return (
-    <section aria-labelledby="tut-h" className="rounded-2xl border border-line bg-surface/80 p-4">
+    <section aria-labelledby="tut-h" className="rounded-2xl border border-accent/25 bg-gradient-to-b from-accent/10 to-surface/70 p-4 shadow-[0_12px_28px_-24px_rgba(183,123,86,0.8)]">
       <div className="flex items-start justify-between gap-3">
         <h3 id="tut-h" className="font-display text-base">
           Wire your first system

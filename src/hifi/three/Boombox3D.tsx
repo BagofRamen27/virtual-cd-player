@@ -11,6 +11,7 @@ import { drawLcd, toTexture } from '../../three/textures';
 import { readMeters } from '../meters';
 import { useHifi } from '../store';
 import { Knob3D, PanelButton } from './Knob3D';
+import { brushedRoughness, plasticBump } from './materials';
 
 export const BOOMBOX_SIZE = { w: 2.3, h: 1.15, d: 0.7 };
 export const BOOMBOX_JACKS: Record<string, [number, number, number]> = {
@@ -106,14 +107,32 @@ export function Boombox3D({ builtinsActive }: { builtinsActive: boolean }) {
   const front = d / 2 + 0.004;
   return (
     <group position={[0, h / 2 + 0.02, 0]}>
+      {/* Two-piece moulded shell: matte polymer with a visible parting line */}
       <RoundedBox args={[w, h, d]} radius={0.12} smoothness={4} castShadow receiveShadow>
-        <meshStandardMaterial color="#3a3632" roughness={0.45} metalness={0.25} />
+        <meshStandardMaterial color="#34312e" roughness={0.62} metalness={0.08} bumpMap={plasticBump()} bumpScale={0.8} />
       </RoundedBox>
-      {/* Silver front band */}
-      <mesh position={[0, 0.3, front - 0.001]}>
-        <planeGeometry args={[w - 0.25, 0.32]} />
-        <meshStandardMaterial color="#bdb7ad" metalness={0.75} roughness={0.32} />
+      <mesh position={[0, 0, -0.02]}>
+        <boxGeometry args={[w + 0.004, h - 0.18, 0.006]} />
+        <meshStandardMaterial color="#141210" roughness={0.9} />
       </mesh>
+      {/* Brushed silver control band with chrome trim */}
+      <mesh position={[0, 0.3, front + 0.004]}>
+        <boxGeometry args={[w - 0.25, 0.32, 0.012]} />
+        <meshPhysicalMaterial color="#c9c3b8" metalness={0.8} roughness={1} roughnessMap={brushedRoughness(4)} anisotropy={0.7} clearcoat={0.2} />
+      </mesh>
+      {[0.465, 0.135].map((y) => (
+        <mesh key={y} position={[0, y, front + 0.011]}>
+          <boxGeometry args={[w - 0.25, 0.008, 0.006]} />
+          <meshStandardMaterial color="#e6e2da" metalness={1} roughness={0.12} />
+        </mesh>
+      ))}
+      {/* Feet */}
+      {[-0.85, 0.85].map((x) => (
+        <mesh key={x} position={[x, -h / 2 - 0.012, 0]}>
+          <boxGeometry args={[0.3, 0.025, d - 0.15]} />
+          <meshStandardMaterial color="#141210" roughness={0.95} />
+        </mesh>
+      ))}
       <Grille x={-0.72} channel="L" active={builtinsActive} />
       <Grille x={0.72} channel="R" active={builtinsActive} />
       <BoomboxLcd />
@@ -129,11 +148,21 @@ export function Boombox3D({ builtinsActive }: { builtinsActive: boolean }) {
         <cylinderGeometry args={[0.022, 0.022, 0.01, 20]} />
         <meshStandardMaterial color="#0d0b0a" />
       </mesh>
-      {/* Handle */}
-      <mesh position={[0, top + 0.12, 0]} rotation={[0, 0, 0]}>
-        <torusGeometry args={[0.7, 0.04, 12, 48, Math.PI]} />
-        <meshStandardMaterial color="#2a2623" roughness={0.5} />
+      {/* Carry handle: chrome bar, rubber grip, hinged mounts */}
+      <mesh position={[0, top + 0.1, 0]}>
+        <torusGeometry args={[0.72, 0.028, 12, 64, Math.PI]} />
+        <meshStandardMaterial color="#d9d4cc" metalness={1} roughness={0.18} />
       </mesh>
+      <mesh position={[0, top + 0.82, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.045, 0.045, 0.6, 24]} />
+        <meshStandardMaterial color="#1c1a18" roughness={0.9} bumpMap={plasticBump()} bumpScale={1.5} />
+      </mesh>
+      {[-0.72, 0.72].map((x) => (
+        <mesh key={x} position={[x, top + 0.06, 0]}>
+          <boxGeometry args={[0.12, 0.12, 0.16]} />
+          <meshStandardMaterial color="#2a2724" roughness={0.6} />
+        </mesh>
+      ))}
       {/* Top-loading CD well and lid */}
       <mesh position={[0, top + 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.32, 48]} />

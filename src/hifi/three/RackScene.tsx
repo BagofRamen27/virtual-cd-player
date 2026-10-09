@@ -1,16 +1,17 @@
 import { Suspense, useEffect, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
+import { Bloom, EffectComposer, N8AO, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { usePlayer } from '../../state/store';
 import { CDPlayer3D } from '../../three/CDPlayer3D';
 import { WarmEnvironment } from '../../three/WarmEnvironment';
-import { drawWalnut, toTexture } from '../../three/textures';
 import { currentRoute, rackOf, useHifi } from '../store';
 import type { CableKind, Connection, Slot } from '../types';
 import { Amp3D, AMP_JACKS, AMP_SIZE } from './Amp3D';
 import { Boombox3D, BOOMBOX_JACKS } from './Boombox3D';
 import { Headphones3D } from './Headphones3D';
+import { RoomEnvironment } from './RoomEnvironment';
 import { SpeakerCabinet, SPEAKER_LOOKS, speakerTerminalLocal } from './Speakers3D';
 
 const DD1_SCALE = 0.42;
@@ -18,9 +19,9 @@ const POS = {
   dd1: new THREE.Vector3(-1.75, 0, 0.5),
   boombox: new THREE.Vector3(-1.75, 0, 0.15),
   amp: new THREE.Vector3(0.75, 0.03, -0.2),
-  spkL: new THREE.Vector3(-3.75, 0, -0.75),
-  spkR: new THREE.Vector3(3.75, 0, -0.75),
-  phones: new THREE.Vector3(2.55, 0, 1.25),
+  spkL: new THREE.Vector3(-3.35, 0, -0.8),
+  spkR: new THREE.Vector3(3.45, 0, -0.8),
+  phones: new THREE.Vector3(2.2, 0, 1.3),
 };
 
 interface Anchor {
@@ -85,6 +86,31 @@ function CableTube({ a, b, color, offset, radius }: { a: Anchor; b: Anchor; colo
   );
 }
 
+/** A connector body at a jack, oriented along the cable's exit direction. */
+function Plug({ anchor, kind }: { anchor: Anchor; kind: CableKind }) {
+  const q = useMemo(() => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), anchor.dir.clone().normalize()), [anchor]);
+  const speaker = kind === 'speaker';
+  const phones = kind.startsWith('headphone');
+  return (
+    <group position={anchor.pos} quaternion={q}>
+      <mesh position={[0, 0.035, 0]} castShadow>
+        <cylinderGeometry args={[speaker ? 0.014 : 0.022, speaker ? 0.016 : 0.022, 0.07, 20]} />
+        <meshPhysicalMaterial color={speaker ? '#d6b25e' : phones ? '#1b1816' : '#cfc9bf'} metalness={speaker || !phones ? 1 : 0.2} roughness={0.25} clearcoat={phones ? 0.6 : 0} />
+      </mesh>
+      {!speaker && !phones && (
+        <mesh position={[0, 0.055, 0]}>
+          <cylinderGeometry args={[0.0235, 0.0235, 0.012, 20]} />
+          <meshStandardMaterial color="#b5371f" roughness={0.4} />
+        </mesh>
+      )}
+      <mesh position={[0, 0.085, 0]}>
+        <cylinderGeometry args={[0.012, 0.018, 0.04, 12]} />
+        <meshStandardMaterial color="#1b1816" roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
 function Cable({ c, sourceId, speakersId }: { c: Connection; sourceId: string; speakersId: string | null }) {
   const from = useMemo(() => anchors(c.from.slot, c.from.port, sourceId, speakersId), [c.from.slot, c.from.port, sourceId, speakersId]);
   const to = useMemo(() => anchors(c.to.slot, c.to.port, sourceId, speakersId), [c.to.slot, c.to.port, sourceId, speakersId]);
@@ -98,13 +124,32 @@ function Cable({ c, sourceId, speakersId }: { c: Connection; sourceId: string; s
         )),
       )}
       {[from[0], ...to].map((e, i) => (
-        <mesh key={i} position={e.pos}>
-          <sphereGeometry args={[0.03, 12, 8]} />
-          <meshStandardMaterial color="#d8c3a0" metalness={0.8} roughness={0.3} emissive="#E8B66B" emissiveIntensity={0.25} />
-        </mesh>
+        <Plug key={i} anchor={e} kind={c.cable} />
       ))}
     </group>
   );
+}
+
+const TARGET = new THREE.Vector3(0, 0.6, -0.15);
+const VIEW_DIR = new THREE.Vector3(0, 0.3, 1).normalize();
+
+/** Frame the whole system (speaker to speaker) for any canvas aspect, on mount and on resize. */
+function FitCamera() {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const size = useThree((s) => s.size);
+  const controls = useThree((s) => s.controls) as unknown as { update?: () => void; saveState?: () => void } | null;
+  useEffect(() => {
+    const halfWidth = 3.95;
+    const halfHeight = 1.7;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const aspect = size.width / Math.max(1, size.height);
+    const dist = Math.max(halfWidth / (tanV * aspect), halfHeight / tanV) + 0.9;
+    camera.position.copy(TARGET).addScaledVector(VIEW_DIR, Math.min(16, Math.max(6, dist)));
+    camera.lookAt(TARGET);
+    controls?.update?.();
+    controls?.saveState?.();
+  }, [camera, size.width, size.height, controls]);
+  return null;
 }
 
 /** Development-only hook for automated checks: project a world point to screen pixels. */
@@ -122,36 +167,6 @@ function DevProbe() {
   return null;
 }
 
-function Room({ dark }: { dark: boolean }) {
-  const walnut = useMemo(() => {
-    const t = toTexture(drawWalnut());
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(3, 1);
-    return t;
-  }, []);
-  return (
-    <group>
-      {/* Low walnut console */}
-      <RoundedBox args={[11.5, 0.16, 3.8]} radius={0.04} smoothness={3} position={[0, -0.08, 0]} receiveShadow castShadow>
-        <meshStandardMaterial map={walnut} roughness={0.5} />
-      </RoundedBox>
-      <mesh position={[0, -1.5, 0]}>
-        <boxGeometry args={[11.2, 2.8, 3.6]} />
-        <meshStandardMaterial color={dark ? '#2a221d' : '#6b5241'} roughness={0.7} />
-      </mesh>
-      {/* Back wall */}
-      <mesh position={[0, 2, -2.6]} receiveShadow>
-        <planeGeometry args={[30, 10]} />
-        <meshStandardMaterial color={dark ? '#2b241f' : '#e9dfd0'} roughness={1} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2.9, 0]} receiveShadow>
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color={dark ? '#211b17' : '#d9cbb7'} roughness={1} />
-      </mesh>
-    </group>
-  );
-}
-
 export default function RackScene() {
   const h = useHifi();
   const theme = usePlayer((s) => s.settings.theme);
@@ -167,30 +182,33 @@ export default function RackScene() {
     <Canvas
       shadows={high ? 'percentage' : false}
       dpr={high ? [1, 2] : 1}
-      camera={{ position: [0, 3.5, 9.4], fov: 40, near: 0.1, far: 80 }}
+      camera={{ position: [0, 2.7, 7.9], fov: 40, near: 0.1, far: 80 }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dark ? 0.95 : 1.05 }}
       aria-hidden="true"
     >
-      <fog attach="fog" args={[dark ? '#1d1815' : '#efe5d6', 14, 30]} />
-      <ambientLight intensity={dark ? 0.25 : 0.45} color="#ffe6cc" />
+      <fog attach="fog" args={[dark ? '#1b1613' : '#eadfce', 16, 34]} />
+      {/* Ambient bounce: warm sky from the window, brown bounce from the wooden floor and furniture */}
+      <hemisphereLight args={[dark ? '#7a6250' : '#fff1dc', dark ? '#2a1d14' : '#7a5a40', dark ? 0.35 : 0.55]} />
+      {/* Key: late-afternoon window light from the left, soft and warm */}
       <directionalLight
-        position={[-5, 8, 5]}
-        intensity={dark ? 1.3 : 2}
-        color="#ffd6a3"
+        position={[-6, 7, 6]}
+        intensity={dark ? 0.9 : 1.7}
+        color="#ffd2a0"
         castShadow={high}
         shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.02}
-        shadow-camera-left={-7}
-        shadow-camera-right={7}
-        shadow-camera-top={5}
-        shadow-camera-bottom={-5}
+        shadow-bias={-0.0003}
+        shadow-normalBias={0.025}
+        shadow-camera-left={-8}
+        shadow-camera-right={8}
+        shadow-camera-top={6}
+        shadow-camera-bottom={-6}
       />
-      <pointLight position={[5.5, 3, -1.5]} intensity={dark ? 14 : 7} color="#ffb070" distance={16} decay={2} />
+      {/* Cool, faint rim from the right to separate the gear from the wall */}
+      <directionalLight position={[6, 4, -3]} intensity={dark ? 0.25 : 0.45} color="#dfe6ff" />
       <Suspense fallback={null}>
         <WarmEnvironment dark={dark} />
       </Suspense>
-      <Room dark={dark} />
+      <RoomEnvironment dark={dark} />
 
       {rack.source?.visualModel === 'boombox' ? (
         <group position={POS.boombox}>
@@ -229,18 +247,26 @@ export default function RackScene() {
         <Cable key={c.id} c={c} sourceId={h.rackIds.source} speakersId={h.rackIds.speakers} />
       ))}
 
+      <FitCamera />
       {import.meta.env.DEV && <DevProbe />}
       <ContactShadows position={[0, 0.002, 0]} opacity={dark ? 0.6 : 0.4} scale={14} blur={2.4} far={3} resolution={high ? 512 : 256} frames={high ? Infinity : 1} color="#251F1B" />
+      {high && (
+        <EffectComposer multisampling={0} enableNormalPass={false}>
+          <N8AO halfRes aoRadius={0.6} intensity={dark ? 2 : 2.6} distanceFalloff={0.8} color="#2a1b10" />
+          <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.15} intensity={0.4} />
+          <Vignette offset={0.32} darkness={dark ? 0.55 : 0.38} />
+        </EffectComposer>
+      )}
       <OrbitControls
         makeDefault
-        target={[0, 0.55, 0]}
+        target={TARGET.toArray() as [number, number, number]}
         enablePan={false}
         enableDamping
         dampingFactor={0.08}
         minDistance={3}
         maxDistance={14}
         minPolarAngle={0.3}
-        maxPolarAngle={1.45}
+        maxPolarAngle={1.5}
         minAzimuthAngle={-1.1}
         maxAzimuthAngle={1.1}
       />

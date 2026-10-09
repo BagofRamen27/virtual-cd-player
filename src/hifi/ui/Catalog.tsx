@@ -22,7 +22,11 @@ export function Catalog() {
         <ul className="space-y-1.5">
           {PRESETS.map((p) => (
             <li key={p.id}>
-              <button type="button" onClick={() => applyPreset(p.id)} className="w-full rounded-xl border border-line px-3 py-2 text-left hover:bg-surface-2/50">
+              <button
+                type="button"
+                onClick={() => applyPreset(p.id)}
+                className="w-full rounded-2xl border border-line bg-surface/60 px-3.5 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.5)_inset] transition-all hover:-translate-y-px hover:border-accent/40 hover:bg-surface hover:shadow-[0_10px_22px_-16px_rgba(37,31,27,0.5)]"
+              >
                 <span className="block text-[13px] font-medium">{p.name}</span>
                 <span className="block text-[11px] text-muted">{p.blurb}</span>
               </button>
@@ -46,14 +50,21 @@ export function Catalog() {
                   role="radio"
                   aria-checked={on}
                   onClick={() => select(sec.slot, on && sec.optional ? null : d.id)}
-                  className={`w-full rounded-xl px-3 py-2 text-left transition-colors ${on ? 'bg-ink text-bg' : 'bg-surface-2/50 hover:bg-surface-2'}`}
+                  className={`relative w-full rounded-2xl border px-3.5 py-2.5 text-left transition-all duration-200 ${
+                    on
+                      ? 'border-accent/60 bg-accent/10 shadow-[0_10px_24px_-18px_rgba(183,123,86,0.9)]'
+                      : 'border-line bg-surface/60 hover:border-accent/30 hover:bg-surface'
+                  }`}
                 >
+                  {on && <span className="absolute left-0 top-3 h-5 w-[3px] rounded-r-full bg-accent" aria-hidden="true" />}
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="text-[13px] font-medium">{d.displayName}</span>
-                    <span className={`text-[10px] ${on ? 'opacity-70' : 'text-muted'}`}>{d.era}</span>
+                    <span className="text-[13px] font-medium text-ink">{d.displayName}</span>
+                    <span className="rounded-full bg-surface-2/80 px-1.5 py-px text-[10px] text-muted">
+                      {d.era} · {d.tier}
+                    </span>
                   </span>
-                  <span className={`mt-0.5 block text-[11px] leading-snug ${on ? 'opacity-75' : 'text-muted'}`}>{d.description}</span>
-                  <span className={`mt-1 block text-[10px] italic ${on ? 'opacity-60' : 'text-muted'}`}>Inspired by: {d.manufacturerInspiration}</span>
+                  <span className="mt-1 block text-[11px] leading-snug text-ink-soft">{d.description}</span>
+                  <span className="mt-1 block text-[10px] italic text-muted">Inspired by {d.manufacturerInspiration.charAt(0).toLowerCase() + d.manufacturerInspiration.slice(1)}</span>
                 </button>
               );
             })}

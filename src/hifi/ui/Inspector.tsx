@@ -148,7 +148,7 @@ export function Inspector() {
   const out = route.output;
 
   return (
-    <div className="space-y-5 px-5 pb-8 pt-5 text-sm">
+    <div className="space-y-4 px-5 pb-8 pt-4 text-sm">
       {/* Route status */}
       <section aria-live="polite" className={`rounded-2xl border p-4 ${out.kind === 'silent' ? 'border-amber/60 bg-amber/10' : 'border-line bg-surface/70'}`}>
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{out.kind === 'silent' ? 'Silent' : 'You’re hearing'}</p>
@@ -170,7 +170,7 @@ export function Inspector() {
 
       {/* Source */}
       {rack.source && (
-        <section aria-labelledby="src-h" className="space-y-3">
+        <section aria-labelledby="src-h" className="space-y-3 rounded-2xl border border-line bg-surface/70 p-4 shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_12px_28px_-24px_rgba(37,31,27,0.6)]">
           <h3 id="src-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
             {rack.source.displayName}
           </h3>
@@ -188,7 +188,7 @@ export function Inspector() {
 
       {/* Amplifier */}
       {amp && ampState && (
-        <section aria-labelledby="amp-h" className="space-y-3">
+        <section aria-labelledby="amp-h" className="space-y-3 rounded-2xl border border-line bg-surface/70 p-4 shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_12px_28px_-24px_rgba(37,31,27,0.6)]">
           <div className="flex items-center justify-between">
             <h3 id="amp-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
               {amp.displayName}
@@ -233,7 +233,7 @@ export function Inspector() {
       )}
 
       {/* Response + meters */}
-      <section aria-labelledby="eq-h" className="space-y-2">
+      <section aria-labelledby="eq-h" className="space-y-2 rounded-2xl border border-line bg-surface/70 p-4 shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_12px_28px_-24px_rgba(37,31,27,0.6)]">
         <h3 id="eq-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
           Response &amp; levels
         </h3>
@@ -244,7 +244,7 @@ export function Inspector() {
 
       {/* Output emulation */}
       {profile && (
-        <section aria-labelledby="out-h" className="space-y-3 rounded-2xl border border-line p-4">
+        <section aria-labelledby="out-h" className="space-y-3 rounded-2xl border border-line bg-surface/70 p-4 shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_12px_28px_-24px_rgba(37,31,27,0.6)]">
           <div className="flex items-baseline justify-between gap-2">
             <h3 id="out-h" className="font-medium">
               {profile.displayName}
@@ -262,7 +262,7 @@ export function Inspector() {
       )}
 
       {/* A/B lab */}
-      <section aria-labelledby="ab-h" className="space-y-3">
+      <section aria-labelledby="ab-h" className="space-y-3 rounded-2xl border border-line bg-surface/70 p-4 shadow-[0_1px_0_rgba(255,255,255,0.45)_inset,0_12px_28px_-24px_rgba(37,31,27,0.6)]">
         <h3 id="ab-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
           Compare
         </h3>

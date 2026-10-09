@@ -3,6 +3,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { easing } from 'maath';
+import { knurlBump, spunMetal } from './materials';
 
 export interface Knob3DProps {
   position: [number, number, number];
@@ -51,7 +52,8 @@ export function Knob3D({
   const angle = sweep / 2 - t * sweep;
 
   useFrame((_, dt) => {
-    if (body.current) easing.dampAngle(body.current.rotation, 'z', angle, 0.06, dt);
+    // A touch of lag makes the knob feel weighted without feeling laggy.
+    if (body.current) easing.dampAngle(body.current.rotation, 'z', angle, 0.09, dt);
   });
 
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
@@ -106,20 +108,35 @@ export function Knob3D({
           if (!disabled) onChange(defaultValue);
         }}
       >
-        {/* skirt */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.18]} castShadow>
-          <cylinderGeometry args={[radius * 1.08, radius * 1.12, radius * 0.36, 48]} />
-          <meshStandardMaterial color="#2a2522" metalness={0.4} roughness={0.5} />
+        {/* shadow collar where the knob meets the panel */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.03]}>
+          <cylinderGeometry args={[radius * 1.18, radius * 1.18, radius * 0.06, 48]} />
+          <meshStandardMaterial color="#141110" roughness={0.9} />
         </mesh>
-        {/* cap */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.55]} castShadow>
-          <cylinderGeometry args={[radius, radius * 1.02, radius * 0.5, 48]} />
-          <meshPhysicalMaterial color={color} metalness={0.9} roughness={0.28} anisotropy={0.8} />
+        {/* knurled skirt */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.24]} castShadow>
+          <cylinderGeometry args={[radius * 1.06, radius * 1.1, radius * 0.42, 64, 1, true]} />
+          <meshStandardMaterial color="#9c968c" metalness={0.85} roughness={0.42} bumpMap={knurlBump()} bumpScale={1.5} />
         </mesh>
-        {/* pointer line */}
-        <mesh position={[0, radius * 0.6, radius * 0.81]}>
-          <boxGeometry args={[radius * 0.08, radius * 0.6, 0.004]} />
-          <meshStandardMaterial color={active || hover ? '#E8B66B' : '#3b2f27'} emissive="#E8B66B" emissiveIntensity={active ? 0.8 : hover ? 0.3 : 0} />
+        {/* chamfered edge */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.5]} castShadow>
+          <cylinderGeometry args={[radius * 0.98, radius * 1.06, radius * 0.1, 64]} />
+          <meshPhysicalMaterial color={color} metalness={1} roughness={0.18} />
+        </mesh>
+        {/* spun-metal face */}
+        <mesh position={[0, 0, radius * 0.555]}>
+          <circleGeometry args={[radius * 0.98, 64]} />
+          <meshPhysicalMaterial color={color} map={spunMetal()} metalness={0.95} roughness={0.3} clearcoat={0.3} />
+        </mesh>
+        {/* inset pointer */}
+        <mesh position={[0, radius * 0.62, radius * 0.56]}>
+          <boxGeometry args={[radius * 0.07, radius * 0.5, 0.003]} />
+          <meshStandardMaterial
+            color={active || hover ? '#E8B66B' : '#2a211b'}
+            emissive="#E8B66B"
+            emissiveIntensity={active ? 0.9 : hover ? 0.35 : 0}
+            toneMapped={!(active || hover)}
+          />
         </mesh>
       </group>
       {(hover || active) && (
@@ -182,7 +199,12 @@ export function PanelButton({
         }}
       >
         <boxGeometry args={[size[0], size[1], 0.035]} />
-        <meshStandardMaterial color={color} metalness={0.6} roughness={0.35} emissive="#E8B66B" emissiveIntensity={hover ? 0.15 : 0} />
+        <meshPhysicalMaterial color={color} metalness={0.7} roughness={0.32} clearcoat={0.4} emissive="#E8B66B" emissiveIntensity={hover ? 0.12 : 0} />
+      </mesh>
+      {/* recess the button sits in */}
+      <mesh position={[0, 0, 0.002]}>
+        <planeGeometry args={[size[0] + 0.014, size[1] + 0.014]} />
+        <meshStandardMaterial color="#15110f" roughness={0.9} />
       </mesh>
       {lit !== undefined && (
         <mesh position={[0, size[1] / 2 + 0.03, 0.01]}>

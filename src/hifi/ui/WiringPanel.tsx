@@ -118,7 +118,7 @@ export function WiringPanel() {
         {slots.map((slot) => {
           const dev = rack[slot];
           return (
-            <section key={slot} aria-label={`${SLOT_TITLES[slot]} back panel`} className="rounded-2xl border border-line bg-surface/80 p-3">
+            <section key={slot} aria-label={`${SLOT_TITLES[slot]} back panel`} className="rounded-2xl border border-line bg-surface/80 p-3 shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_14px_30px_-24px_rgba(37,31,27,0.6)] backdrop-blur">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{SLOT_TITLES[slot]}</p>
               <p className="truncate text-[13px] font-medium">{dev?.displayName ?? '—'}</p>
               {slot === 'source' && dev && 'builtInSpeakerProfileId' in dev && dev.builtInSpeakerProfileId && (

@@ -126,6 +126,34 @@ scratch worklet → route/source gain → amp tone (bass/treble shelves + loudne
 
 Automated checks: `tests/hifi.test.ts` covers connector validation, route construction (including headphone insertion/removal and device swaps) and control mapping (taper, a ±12 dB bass shelf measured at 30 Hz vs 2 kHz, balance, loudness, profile differences, neutral intensity).
 
+### Realism pass (materials, lighting, room)
+
+The Hi-Fi Room is rendered like a product visualisation. Everything is still procedural (no downloads), and every control still works.
+
+- **Materials** (`src/hifi/three/materials.ts`). Cached, generated PBR maps:
+  - brushed-aluminium roughness and bump with faint fingerprints and edge polish;
+  - spun-metal knob caps, knurled skirts, walnut and oak veneer (colour, plus roughness with pores);
+  - woven grille cloth, matte-plastic speckle, plaster, paper cones, pleated leather, vent slots, plank floor and a rug.
+
+  Imperfections live mainly in the roughness and bump maps, so they show up only where light catches them.
+- **Hardware:**
+  - **Amp:** walnut side cheeks, a vented steel lid with screws, a machined faceplate with 5 mm panel gaps and printed legends, chrome-bezel VU meters with backlight and a red needle tip, gold RCA jacks, binding posts, an IEC inlet, and rubber feet with chrome trim.
+  - **Speakers:** a veneered cabinet with a satin baffle, plus a woofer with basket, screws, rubber surround, paper cone and dust cap (still driven by the real signal). Also a waveguide tweeter, a bass port, a badge and isolation pads. The budget pair has a moulded body with a parting line and a cloth grille.
+  - **Boombox:** a two-piece moulded shell, a brushed control band with chrome trim, and a chrome carry handle with a rubber grip.
+  - **Elsewhere:** headphones with a steel band, yokes and leather pads; cables end in real plug bodies.
+  - **Knobs:** a knurled skirt, chamfer, spun face and inset pointer, with slightly heavier damping.
+- **Lighting:** a hemisphere light provides warm sky and wood bounce, a soft window key light comes from the left, a faint cool rim light comes from the right, and a table lamp is the room's practical light. On **High** quality you also get ambient occlusion (N8AO), a subtle glow on the lamp, LCD and VU meters, and a gentle vignette. **Low** quality turns all three off, along with real-time shadows.
+- **Room:** a mid-century walnut credenza (slatted doors, brass pulls, tapered legs), a plaster wall with skirting, a slatted acoustic panel, an oak floor with a wool rug, a table lamp, and a short stack of your own albums in jewel cases.
+- **Camera:** it frames speaker to speaker for any window shape and re-fits on resize. On phones the header is compact and the setups are one-tap chips under the scene.
+
+**What full photorealism would still need** (the material slots are ready for these):
+
+- Scanned CC0 PBR texture sets for walnut, brushed aluminium and fabric, e.g. from ambientCG or Poly Haven.
+- A CC0 interior HDRI for reflections.
+- Ideally, artist-made glTF models of the amplifier and speakers with baked ambient occlusion.
+
+None of these are bundled, and the procedural versions aren't claimed to be photographic.
+
 ### Coming in later phases
 
 More eras and devices (a 1980s tray-loading player, 1990s changer and receiver, 2000s mini system, a modern transport with optical/coax into a DAC amp), more speaker and headphone profiles, anti-skip on the portable, separates (preamp + power amp), room acoustics, and a blind level-matched comparison lab.
