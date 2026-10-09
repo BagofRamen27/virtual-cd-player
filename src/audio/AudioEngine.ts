@@ -87,7 +87,13 @@ export class AudioEngine {
     const sr = this.sampleRate;
     this.node.port.postMessage({
       type: 'events',
-      events: events.map((e) => ({ type: e.type, start: Math.round(e.t * sr), len: Math.max(1, Math.round(e.len * sr)), count: e.count })),
+      events: events.map((e) => ({
+        type: e.type,
+        start: Math.round(e.t * sr),
+        len: Math.max(1, Math.round(e.len * sr)),
+        count: e.count,
+        jump: Math.round((e.jump ?? 0) * sr),
+      })),
     });
   }
 

@@ -51,13 +51,15 @@ Requires Node 22.18 or newer (the unit tests use Node's built-in TypeScript supp
 
 Everything in the 3D scene also has a DOM control: transport buttons, a seek slider, a track list, volume, and condition radios. Player state is announced through a polite live region, so screen readers hear it.
 
-## How the scratch simulation works (local audio only)
+## How the scratch simulation works
 
 A real CD is read from the inside out at constant linear velocity, so the playback time reached at radius *r* grows with *r²*. DiscDeck stores scratches as polar strokes on the disc and maps them onto the album timeline the same way (`src/audio/damage.ts`):
 
 - **Arced scratches** run along the spiral track and wreck a short stretch of audio. They produce repeats ("stuck" CD), skips, dropouts with a slow tracking recovery, and stutters.
 - **Radial scratches** cross many turns of the spiral but only briefly on each turn, so they produce sparse micro-clicks over a longer stretch.
-- **Condition levels** add seeded wear marks. Damaged and Unplayable discs also lose tracking periodically across the whole program.
+- **Condition levels** add seeded wear marks and dust, fingerprint smudges and haze. Every level above Mint also loses tracking periodically, from an occasional click on a Light disc to a skip every few seconds on an Unplayable one. The first problem always arrives within about 15 seconds.
+- **The classic CD skip** (`skipburst`): a tiny fragment stutters a few times ("ch-ch-ch"), then the laser jumps ahead.
+- **You can see every glitch:** the disc jolts and its spin hiccups, the LCD flashes SKIP / TRACKING / SEARCH, and Now Playing shows "Skipped at 1:23".
 - Every random choice is seeded from the disc's ID and each stroke's ID, so the same disc fails at the same places on every play. This is covered by unit tests.
 
 The audio runs in an AudioWorklet (`src/audio/scratch-worklet.js`) that plays the decoded track and applies the events. Every discontinuity goes through a short gain ramp, and the output passes through a gentle limiter. The result is audible damage without harsh clicks or loud peaks.
@@ -90,7 +92,7 @@ Spotify is optional. Without it, the app says so plainly and never pretends to b
 
 **Limitations, by design and by Spotify's terms:**
 - Free accounts can browse but cannot play in the browser. DiscDeck says this clearly.
-- Spotify audio is never captured, recorded, processed or altered. Scratches on Spotify discs are cosmetic only, and the UI says so.
+- Spotify audio is never captured, recorded, processed or altered. A scratched Spotify disc still skips, but only through the Web Playback SDK's own `seek()`, the same thing a listener does when scrubbing. Skips, repeats and stutters are approximated with quick seeks, but clicks and dropouts would mean altering the audio, so they are not used on Spotify.
 - Artwork and metadata are attributed to Spotify, and each album links back with *Open in Spotify*.
 - The Web Playback SDK needs a desktop browser with DRM (EME) support. Some mobile browsers, and Chromium builds without Widevine, report an initialization error, which DiscDeck displays.
 - Spotify periodically changes which Web API endpoints are open to development-mode apps. If a request is refused, the error message is shown as-is.

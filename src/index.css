@@ -168,6 +168,17 @@ input[type='range'].dd-range::-moz-range-thumb {
   animation: dd-spin 1.4s linear infinite;
 }
 
+@keyframes dd-jolt {
+  0%, 100% { translate: 0 0; }
+  20% { translate: -3px 2px; }
+  40% { translate: 3px -2px; }
+  60% { translate: -2px -1px; }
+  80% { translate: 1px 2px; }
+}
+.dd-jolt {
+  animation: dd-jolt 300ms linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

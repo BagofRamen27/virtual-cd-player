@@ -117,7 +117,7 @@ function EditorBody({ album }: { album: Album }) {
             <directionalLight position={[-2, 4, 2]} intensity={1.6} color="#ffd6a3" />
             <WarmEnvironment resolution={128} />
             <group rotation={[0, rotation, 0]}>
-              <DiscMeshes album={album} strokes={all} highlight={draft?.id} onSurfacePointer={handlers} />
+              <DiscMeshes album={album} strokes={all} wear={{ condition: profile.condition, seed: profile.seed }} highlight={draft?.id} onSurfacePointer={handlers} />
             </group>
             <OrbitControls enabled={tool === 'rotate'} enablePan={false} minDistance={1.8} maxDistance={4.5} />
           </Canvas>
@@ -191,7 +191,7 @@ function EditorBody({ album }: { album: Album }) {
         </div>
         <p className="text-xs leading-relaxed text-muted">
           Condition: {CONDITION_LABELS[profile.condition]} · {userStrokes.length} hand-made scratch{userStrokes.length === 1 ? '' : 'es'}. Changes save automatically
-          {album.source === 'spotify' ? ' and are cosmetic only for Spotify discs.' : ' and apply to playback immediately.'}
+          {album.source === 'spotify' ? ' and make this Spotify disc skip (via Spotify’s seek control).' : ' and apply to playback immediately.'}
         </p>
       </div>
     </div>

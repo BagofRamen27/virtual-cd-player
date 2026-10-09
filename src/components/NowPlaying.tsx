@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+const GLITCH_LABEL = { click: 'Click', dropout: 'Dropout', stutter: 'Stuttered', repeat: 'Repeated', skip: 'Skipped', skipburst: 'Skipped' } as const;
 import { usePlayer, useInsertedAlbum, useSelectedAlbum } from '../state/store';
 import { CONDITION_LABELS, type ConditionLevel } from '../types';
 import { formatTime } from '../lib/art';
@@ -10,6 +12,15 @@ function Progress() {
   const state = usePlayer((s) => s.state);
   const seek = usePlayer((s) => s.seek);
   const [scrub, setScrub] = useState<number | null>(null);
+  const glitch = usePlayer((s) => s.lastGlitch);
+  const glitchPos = usePlayer((s) => s.lastGlitchPosition);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!glitch) return;
+    const id = setTimeout(() => tick((n) => n + 1), 1800);
+    return () => clearTimeout(id);
+  }, [glitch]);
+  const showGlitch = glitch && performance.now() - glitch.at < 1800;
   const value = scrub ?? position;
   const disabled = !['PLAYING', 'PAUSED', 'READY', 'STOPPED'].includes(state) || duration <= 0;
   const commit = () => {
@@ -39,6 +50,9 @@ function Progress() {
         <span>{formatTime(value)}</span>
         <span>-{formatTime(Math.max(0, duration - value))}</span>
       </div>
+      <p className="mt-1 h-4 text-[11px] font-medium text-accent-ink" aria-live="polite">
+        {showGlitch ? `${GLITCH_LABEL[glitch.kind]} at ${formatTime(glitchPos)}` : ''}
+      </p>
     </div>
   );
 }
@@ -70,7 +84,7 @@ function DiscCondition({ albumId, source }: { albumId: string; source: 'local' |
   const { setCondition, cleanDisc, setUi } = usePlayer.getState();
   const condition = profile?.condition ?? 0;
   const strokes = profile?.strokes.length ?? 0;
-  const cosmetic = source === 'spotify';
+  const spotify = source === 'spotify';
 
   return (
     <section aria-labelledby="condition-h" className="rounded-2xl border border-line p-4">
@@ -78,7 +92,7 @@ function DiscCondition({ albumId, source }: { albumId: string; source: 'local' |
         <h3 id="condition-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
           Disc condition
         </h3>
-        {cosmetic ? <Pill>Cosmetic only</Pill> : <Pill tone="accent">Audible</Pill>}
+        {condition > 0 || strokes > 0 ? <Pill tone="accent">{spotify ? 'Visible · skips' : 'Visible · audible'}</Pill> : <Pill>Clean</Pill>}
       </div>
       <div role="radiogroup" aria-labelledby="condition-h" className="mt-3 grid grid-cols-3 gap-1.5">
         {([0, 1, 2, 3, 4, 5] as ConditionLevel[]).map((lvl) => (
@@ -95,9 +109,9 @@ function DiscCondition({ albumId, source }: { albumId: string; source: 'local' |
         ))}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted">
-        {cosmetic
-          ? 'Scratches on Spotify discs are visual only. DiscDeck never captures or alters Spotify audio.'
-          : 'Damage is seeded, so a scratched disc skips at the same places every time you play it.'}
+        {spotify
+          ? 'Scratched Spotify discs skip and repeat using Spotify’s own seek control, at the same places every play. The audio itself is never recorded or altered.'
+          : 'Scratched discs stutter, skip and drop out at the same places every time you play them.'}
         {strokes > 0 && ` ${strokes} hand-made scratch${strokes > 1 ? 'es' : ''}.`}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">

@@ -101,7 +101,7 @@ export function SettingsDialog() {
               </>
             )}
             <p className="mt-3 text-xs leading-relaxed text-muted">
-              Playback uses Spotify’s official Web Playback SDK and requires Premium. Spotify audio is never recorded or modified; disc scratches are cosmetic for Spotify albums.
+              Playback uses Spotify’s official Web Playback SDK and requires Premium. Spotify audio is never recorded or modified; scratched Spotify discs skip using Spotify’s own seek control.
             </p>
           </div>
         )}

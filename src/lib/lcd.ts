@@ -1,7 +1,7 @@
 import type { Album, PlayerState } from '../types';
 import type { LcdContent } from '../three/textures';
 
-const GLITCH_TEXT = { click: 'C1 ERR', dropout: 'NO SIGNAL', stutter: 'TRACKING', repeat: 'SEARCH', skip: 'SKIP' } as const;
+const GLITCH_TEXT = { click: 'C1 ERR', dropout: 'NO SIGNAL', stutter: 'TRACKING', repeat: 'SEARCH', skip: 'SKIP', skipburst: 'SKIP' } as const;
 
 function mmss(sec: number): string {
   const s = Math.max(0, Math.floor(sec));

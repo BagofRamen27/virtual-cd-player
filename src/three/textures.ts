@@ -117,8 +117,58 @@ export function drawRotationalBlur(src: HTMLCanvasElement, steps = 14, spread = 
 }
 
 /** Scratch marks on a transparent full-disc map. */
-export function drawScratches(strokes: ScratchStroke[], size = 1024, highlight?: string | null): HTMLCanvasElement {
+export interface Wear {
+  condition: number;
+  seed: number;
+}
+
+/** Dust, fingerprints and haze that build up with the disc condition. */
+function drawWear(g: CanvasRenderingContext2D, size: number, wear: Wear) {
+  const c = wear.condition;
+  if (c <= 0) return;
+  const rng = mulberry32(wear.seed ^ 0x5bd1e995);
+  const k = size / 1024;
+  // Haze over the whole playing surface on badly worn discs
+  if (c >= 3) {
+    g.beginPath();
+    g.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    g.arc(size / 2, size / 2, size * 0.0625, 0, Math.PI * 2, true);
+    g.fillStyle = `rgba(255,248,236,${0.05 * (c - 2)})`;
+    g.fill();
+  }
+  // Fingerprint smudges
+  for (let i = 0; i < Math.max(0, c - 1) * 2; i++) {
+    const [x, y] = polarToCanvas(0.35 + rng() * 0.6, rng() * Math.PI * 2, size);
+    const r = (40 + rng() * 80) * k;
+    const grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(255,250,240,${0.1 + c * 0.03})`);
+    grad.addColorStop(1, 'rgba(255,250,240,0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = `rgba(255,250,240,${0.05 + c * 0.015})`;
+    g.lineWidth = 1.2 * k;
+    for (let w = 0.25; w < 1; w += 0.12) {
+      g.beginPath();
+      g.ellipse(x, y, r * w, r * w * 0.75, rng() * Math.PI, 0, Math.PI * 2);
+      g.stroke();
+    }
+  }
+  // Dust specks
+  const dust = [0, 40, 90, 160, 260, 380][c] ?? 0;
+  for (let i = 0; i < dust; i++) {
+    const [x, y] = polarToCanvas(0.14 + rng() * 0.85, rng() * Math.PI * 2, size);
+    g.fillStyle = rng() < 0.75 ? `rgba(255,255,255,${0.35 + rng() * 0.4})` : `rgba(40,30,22,${0.3 + rng() * 0.3})`;
+    g.beginPath();
+    g.arc(x, y, (0.6 + rng() * 1.8) * k, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
+export function drawScratches(strokes: ScratchStroke[], size = 1024, highlight?: string | null, wear?: Wear): HTMLCanvasElement {
   const [c, g] = canvas(size);
+  if (wear) drawWear(g, size, wear);
   g.lineCap = 'round';
   g.lineJoin = 'round';
   for (const s of strokes) {
@@ -135,8 +185,8 @@ export function drawScratches(strokes: ScratchStroke[], size = 1024, highlight?:
         if (i === 0) g.moveTo(x, y);
         else g.lineTo(x, y);
       });
-      g.strokeStyle = sel ? 'rgba(232,182,107,0.95)' : `rgba(255,255,255,${0.18 + s.depth * 0.5})`;
-      g.lineWidth = (0.6 + s.depth * 2.2) * (size / 1024) * (l === 0 ? 1 : 0.6);
+      g.strokeStyle = sel ? 'rgba(232,182,107,0.95)' : `rgba(255,255,255,${Math.min(0.95, 0.32 + s.depth * 0.6)})`;
+      g.lineWidth = (0.9 + s.depth * 3) * (size / 1024) * (l === 0 ? 1 : 0.6);
       g.stroke();
       // Dark edge gives the mark some depth.
       g.strokeStyle = `rgba(30,24,20,${0.08 + s.depth * 0.25})`;

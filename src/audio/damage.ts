@@ -60,6 +60,15 @@ function angleDelta(a: number, b: number): number {
   return d;
 }
 
+const TRACKING: Record<ConditionLevel, { every: [number, number]; types: readonly DamageEventType[]; severity: number } | null> = {
+  0: null,
+  1: { every: [40, 90], types: ['click', 'stutter', 'click'], severity: 0.2 },
+  2: { every: [20, 40], types: ['stutter', 'skipburst', 'click'], severity: 0.35 },
+  3: { every: [10, 20], types: ['skipburst', 'stutter', 'repeat', 'skipburst'], severity: 0.55 },
+  4: { every: [5, 10], types: ['skipburst', 'repeat', 'skip', 'dropout', 'skipburst'], severity: 0.75 },
+  5: { every: [2, 4.5], types: ['skipburst', 'skip', 'repeat', 'dropout'], severity: 0.95 },
+};
+
 const STROKE_COUNTS: Record<ConditionLevel, number> = { 0: 0, 1: 4, 2: 10, 3: 18, 4: 30, 5: 46 };
 
 /** Visual + audible wear implied by a condition level. Deterministic for a seed. */
@@ -125,7 +134,9 @@ function makeEvent(rng: () => number, type: DamageEventType, t: number, severity
     case 'dropout':
       return { type, t, len: 0.08 + rng() * (0.15 + severity * 0.35), count: 0 };
     case 'stutter':
-      return { type, t, len: 0.05 + rng() * 0.08, count: 2 + Math.floor(rng() * 3) };
+      return { type, t, len: 0.06 + rng() * 0.07, count: 3 + Math.floor(rng() * (2 + severity * 3)) };
+    case 'skipburst':
+      return { type, t, len: 0.07 + rng() * 0.05, count: 3 + Math.floor(rng() * (2 + severity * 3)), jump: 0.4 + rng() * (0.6 + severity * 1.9) };
     case 'repeat':
       return { type, t, len: 0.25 + rng() * (0.25 + severity * 0.4), count: 1 + Math.floor(rng() * (1 + severity * 2.5)) };
     case 'skip':
@@ -172,7 +183,7 @@ export function computeDamageEvents(profile: DamageProfile, total: number): Dama
     if (shape.arcness > 0.35) {
       const n = 1 + Math.floor(severity * 3.2);
       const types: readonly DamageEventType[] =
-        severity < 0.3 ? ['click', 'stutter'] : severity < 0.6 ? ['stutter', 'dropout', 'repeat'] : ['repeat', 'skip', 'dropout', 'repeat'];
+        severity < 0.3 ? ['click', 'stutter'] : severity < 0.6 ? ['stutter', 'skipburst', 'dropout', 'repeat'] : ['skipburst', 'repeat', 'skip', 'dropout'];
       for (let i = 0; i < n; i++) {
         const t = t0 + rng() * (t1 - t0);
         events.push(makeEvent(rng, pick(rng, types), t, severity));
@@ -180,13 +191,14 @@ export function computeDamageEvents(profile: DamageProfile, total: number): Dama
     }
   }
 
-  // Badly damaged discs also lose tracking periodically across the whole program.
-  if (profile.condition >= 4) {
+  // Worn discs also lose tracking periodically across the whole program, so every condition
+  // above Mint is clearly audible. The first problem always arrives within ~15 seconds.
+  const tracking = TRACKING[profile.condition];
+  if (tracking) {
     const rng = mulberry32(hashString(`${profile.seed}:tracking`));
-    const [lo, hi] = profile.condition === 5 ? [2.5, 6] : [18, 40];
-    const types: readonly DamageEventType[] = profile.condition === 5 ? ['skip', 'repeat', 'dropout', 'stutter'] : ['stutter', 'dropout'];
-    for (let t = lo * rng(); t < total; t += lo + rng() * (hi - lo)) {
-      events.push(makeEvent(rng, pick(rng, types), t, profile.condition === 5 ? 0.9 : 0.5));
+    const [lo, hi] = tracking.every;
+    for (let t = Math.min(lo * rng(), 4 + rng() * 10); t < total; t += lo + rng() * (hi - lo)) {
+      events.push(makeEvent(rng, pick(rng, tracking.types), t, tracking.severity));
     }
   }
 
@@ -199,6 +211,8 @@ function eventSpan(e: DamageEvent): number {
     case 'stutter':
     case 'repeat':
       return e.len * (e.count + 1);
+    case 'skipburst':
+      return e.len * (e.count + 1) + 0.05;
     case 'skip':
       return 0.05;
     default:

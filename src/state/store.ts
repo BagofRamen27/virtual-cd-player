@@ -69,6 +69,7 @@ interface PlayerStore {
   notice: Notice | null;
   damage: Record<string, DamageProfile>;
   lastGlitch: { kind: DamageEventType; at: number } | null;
+  lastGlitchPosition: number;
   spotify: { status: SpotifyStatus; user?: SpotifyUser; message?: string; searching?: boolean };
   importing: boolean;
   settingsOpen: boolean;
@@ -143,9 +144,9 @@ export const usePlayer = create<PlayerStore>((set, get) => {
 
   const applyDamage = (albumId: string) => {
     const album = get().findAlbum(albumId);
-    if (!album || active !== localAdapter || get().insertedAlbumId !== albumId) return;
+    if (!album || !active?.setDamage || get().insertedAlbumId !== albumId) return;
     const total = album.tracks.reduce((s, t) => s + (t.duration || 0), 0);
-    localAdapter.setDamage(computeDamageEvents(get().damageFor(albumId), total));
+    active.setDamage(computeDamageEvents(get().damageFor(albumId), total));
   };
 
   const saveDamage = (profile: DamageProfile) => {
@@ -173,7 +174,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
         set({ trackIndex: 0, position: 0 });
         break;
       case 'glitch':
-        set({ lastGlitch: { kind: e.kind, at: performance.now() } });
+        set({ lastGlitch: { kind: e.kind, at: performance.now() }, lastGlitchPosition: get().position });
         break;
       case 'error':
         if (get().insertedAlbumId && st !== 'EJECTING') fail(e.message);
@@ -202,6 +203,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     notice: null,
     damage: {},
     lastGlitch: null,
+    lastGlitchPosition: 0,
     spotify: { status: spotifyAuth.spotifyConfigured() ? 'disconnected' : 'unconfigured' },
     importing: false,
     settingsOpen: false,

@@ -70,7 +70,8 @@ export interface DamageProfile {
   updatedAt: number;
 }
 
-export type DamageEventType = 'click' | 'dropout' | 'stutter' | 'repeat' | 'skip';
+/** skipburst = the classic CD skip: a tiny fragment stutters a few times, then the laser jumps ahead. */
+export type DamageEventType = 'click' | 'dropout' | 'stutter' | 'repeat' | 'skip' | 'skipburst';
 
 /** A playback glitch in seconds, relative to the album timeline or a track. */
 export interface DamageEvent {
@@ -79,8 +80,10 @@ export interface DamageEvent {
   t: number;
   /** For click/dropout: silence length. For stutter/repeat: fragment length. For skip: jump distance. */
   len: number;
-  /** For stutter/repeat: number of repeats. */
+  /** For stutter/repeat/skipburst: number of repeats. */
   count: number;
+  /** For skipburst: how far to jump ahead (seconds) after stuttering. */
+  jump?: number;
 }
 
 export interface Settings {

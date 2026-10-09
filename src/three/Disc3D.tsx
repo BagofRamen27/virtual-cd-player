@@ -4,8 +4,8 @@ import * as THREE from 'three';
 import { easing } from 'maath';
 import type { Album, ScratchStroke } from '../types';
 import { useImage } from '../lib/useImage';
-import { drawLabel, drawRotationalBlur, drawScratches, LABEL_INNER, LABEL_OUTER, toTexture } from './textures';
-import type { DiscPhase } from '../state/store';
+import { drawLabel, drawRotationalBlur, drawScratches, LABEL_INNER, LABEL_OUTER, toTexture, type Wear } from './textures';
+import { usePlayer, type DiscPhase } from '../state/store';
 
 const HOLE = 0.125;
 const THICK = 0.012;
@@ -19,6 +19,7 @@ function useDisposable<T extends { dispose(): void }>(factory: () => T, deps: un
 interface DiscMeshesProps {
   album: Album;
   strokes: ScratchStroke[];
+  wear?: Wear;
   highlight?: string | null;
   blurMaterial?: RefObject<THREE.MeshBasicMaterial | null>;
   onSurfacePointer?: {
@@ -30,12 +31,13 @@ interface DiscMeshesProps {
 }
 
 /** The physical disc: holographic polycarbonate, clear hub, printed label, scratches. Lies flat (y up). */
-export function DiscMeshes({ album, strokes, highlight, blurMaterial, onSurfacePointer, castShadow }: DiscMeshesProps) {
+export function DiscMeshes({ album, strokes, wear, highlight, blurMaterial, onSurfacePointer, castShadow }: DiscMeshesProps) {
   const img = useImage(album.coverUrl);
   const labelCanvas = useMemo(() => drawLabel(album, img), [album, img]);
   const labelTex = useDisposable(() => toTexture(labelCanvas), [labelCanvas]);
   const blurTex = useDisposable(() => toTexture(drawRotationalBlur(labelCanvas)), [labelCanvas]);
-  const scratchTex = useDisposable(() => toTexture(drawScratches(strokes, 1024, highlight)), [strokes, highlight]);
+  const wearKey = wear ? `${wear.condition}:${wear.seed}` : '';
+  const scratchTex = useDisposable(() => toTexture(drawScratches(strokes, 1024, highlight, wear)), [strokes, highlight, wearKey]);
 
   const baseGeo = useDisposable(() => {
     const shape = new THREE.Shape();
@@ -91,6 +93,7 @@ export function DiscMeshes({ album, strokes, highlight, blurMaterial, onSurfaceP
 interface Disc3DProps {
   album: Album;
   strokes: ScratchStroke[];
+  wear?: Wear;
   phase: DiscPhase;
   spinning: boolean;
   seat: [number, number, number];
@@ -100,11 +103,14 @@ interface Disc3DProps {
 const MAX_SPIN = 15; // rad/s — fast enough to read as "spinning", slow enough to avoid strobing
 
 /** The inserted disc: animates lift → hover → drop onto the spindle, spins only while really playing. */
-export function Disc3D({ album, strokes, phase, spinning, seat, reducedMotion }: Disc3DProps) {
+export function Disc3D({ album, strokes, wear, phase, spinning, seat, reducedMotion }: Disc3DProps) {
   const group = useRef<THREE.Group>(null);
   const spinner = useRef<THREE.Group>(null);
   const blur = useRef<THREE.MeshBasicMaterial>(null);
   const speed = useRef(0);
+  const jolt = useRef<THREE.Group>(null);
+  const lastGlitchAt = useRef(0);
+  const joltStart = useRef(-1e9);
   const phaseStart = useRef(performance.now());
   const startPos = useMemo(() => new THREE.Vector3(seat[0] + 0.2, seat[1] + 1.9, seat[2] + 2.6), [seat]);
   const target = useMemo(() => new THREE.Vector3(), []);
@@ -146,6 +152,28 @@ export function Disc3D({ album, strokes, phase, spinning, seat, reducedMotion }:
     easing.dampE(g.rotation, tilt, smooth, dt);
 
     // Spin up/down like a real motor: quick start, gentle coast to a stop.
+    // A skip makes the disc catch: the spin hiccups and the disc jolts on the spindle.
+    const glitch = usePlayer.getState().lastGlitch;
+    const now = performance.now();
+    if (glitch && glitch.at !== lastGlitchAt.current) {
+      lastGlitchAt.current = glitch.at;
+      if (spinning) {
+        joltStart.current = now;
+        speed.current *= glitch.kind === 'click' ? 0.85 : 0.45;
+      }
+    }
+    if (jolt.current) {
+      const j = (now - joltStart.current) / (reducedMotion ? 120 : 320);
+      if (j < 1) {
+        const k = (1 - j) * (reducedMotion ? 0.3 : 1);
+        jolt.current.position.set((Math.random() - 0.5) * 0.035 * k, Math.abs(Math.sin(j * 18)) * 0.02 * k, (Math.random() - 0.5) * 0.035 * k);
+        jolt.current.rotation.set((Math.random() - 0.5) * 0.06 * k, 0, (Math.random() - 0.5) * 0.06 * k);
+      } else if (jolt.current.position.lengthSq() > 0) {
+        jolt.current.position.set(0, 0, 0);
+        jolt.current.rotation.set(0, 0, 0);
+      }
+    }
+
     const want = spinning ? (reducedMotion ? 4 : MAX_SPIN) : 0;
     easing.damp(speed, 'current', want, spinning ? 0.35 : 0.7, dt);
     if (spinner.current) spinner.current.rotation.y -= speed.current * dt;
@@ -154,8 +182,10 @@ export function Disc3D({ album, strokes, phase, spinning, seat, reducedMotion }:
 
   return (
     <group ref={group}>
-      <group ref={spinner}>
-        <DiscMeshes album={album} strokes={strokes} blurMaterial={blur} castShadow />
+      <group ref={jolt}>
+        <group ref={spinner}>
+          <DiscMeshes album={album} strokes={strokes} wear={wear} blurMaterial={blur} castShadow />
+        </group>
       </group>
     </group>
   );

@@ -28,9 +28,10 @@ class ScratchProcessor extends AudioWorkletProcessor {
     this.loopStart = 0;
     this.loopEnd = 0;
     this.loopsLeft = 0;
+    this.afterJump = 0;
     this.reportEvery = Math.round(sampleRate * 0.05);
     this.sinceReport = 0;
-    this.envStep = 1 / (sampleRate * 0.004);
+    this.envStep = 1 / (sampleRate * 0.0025);
     this.fastStep = 1 / (sampleRate * 0.003);
     this.recoverStep = 1 / (sampleRate * 0.045);
     this.port.onmessage = (e) => this.onMessage(e.data);
@@ -66,6 +67,7 @@ class ScratchProcessor extends AudioWorkletProcessor {
       case 'seek': {
         const frame = Math.max(0, Math.min(this.length - 1, Math.floor(msg.frame)));
         this.loopsLeft = 0;
+        this.afterJump = 0;
         this.muteUntil = -1;
         if (this.running && this.env > 0) {
           this.pendingJump = { frame, reset: true };
@@ -106,9 +108,11 @@ class ScratchProcessor extends AudioWorkletProcessor {
         break;
       case 'stutter':
       case 'repeat':
+      case 'skipburst':
         this.loopStart = this.pos;
         this.loopEnd = this.pos + ev.len;
         this.loopsLeft = ev.count;
+        this.afterJump = ev.type === 'skipburst' ? ev.jump || 0 : 0;
         break;
       case 'skip':
         this.pendingJump = { frame: Math.min(this.length - 1, this.pos + ev.len), reset: true };
@@ -152,9 +156,15 @@ class ScratchProcessor extends AudioWorkletProcessor {
         this.next++;
       }
 
-      if (this.loopsLeft > 0 && this.pos >= this.loopEnd && this.pendingJump === null) {
-        this.loopsLeft--;
-        this.pendingJump = { frame: this.loopStart, reset: false };
+      if (this.pos >= this.loopEnd && this.pendingJump === null) {
+        if (this.loopsLeft > 0) {
+          this.loopsLeft--;
+          this.pendingJump = { frame: this.loopStart, reset: false };
+        } else if (this.afterJump > 0) {
+          // The laser gives up on the damaged spot and lands further along.
+          this.pendingJump = { frame: Math.min(this.length - 1, this.pos + this.afterJump), reset: true };
+          this.afterJump = 0;
+        }
       }
 
       // Damage envelope: fast dips for clicks, slow "tracking recovery" after dropouts.

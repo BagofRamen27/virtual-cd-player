@@ -57,7 +57,8 @@ test('events are sorted, non-overlapping and bounded for hearing comfort', () =>
   for (const e of events) {
     if (e.type === 'dropout') assert.ok(e.len <= 0.6);
     if (e.type === 'skip') assert.ok(e.len <= 3);
-    assert.ok(e.count <= 4);
+    assert.ok(e.count <= 8);
+    if (e.type === 'skipburst') assert.ok((e.jump ?? 0) > 0 && (e.jump ?? 0) <= 3);
   }
 });
 
@@ -78,4 +79,18 @@ test('track slicing shifts events into track-local time', () => {
 test('condition wear strokes are deterministic', () => {
   assert.deepEqual(generateConditionStrokes(42, 4), generateConditionStrokes(42, 4));
   assert.equal(generateConditionStrokes(42, 0).length, 0);
+});
+
+test('every worn condition is audible within the first 15 seconds', () => {
+  for (const c of [1, 2, 3, 4, 5] as const) {
+    for (const id of ['album-a', 'album-b', 'album-c']) {
+      const events = computeDamageEvents({ ...newDamageProfile(id), condition: c }, TOTAL);
+      assert.ok(events.some((e) => e.t < 15), `condition ${c} on ${id} has no early event`);
+    }
+  }
+});
+
+test('scratched discs produce real skips', () => {
+  const events = computeDamageEvents({ ...newDamageProfile('album-a'), condition: 3 }, TOTAL);
+  assert.ok(events.filter((e) => e.type === 'skipburst' || e.type === 'skip').length >= 20);
 });

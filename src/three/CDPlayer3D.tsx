@@ -274,6 +274,7 @@ export function CDPlayer3D() {
           key={album.id}
           album={album}
           strokes={strokes}
+          wear={profile ? { condition: profile.condition, seed: profile.seed } : undefined}
           phase={s.discPhase}
           spinning={playing && s.powered}
           seat={SEAT}

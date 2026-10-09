@@ -1,4 +1,5 @@
-import type { Album } from '../types';
+import type { Album, DamageEvent } from '../types';
+import { eventsForTrack } from '../audio/damage';
 import { spotifyFetch, SpotifyApiError } from '../spotify/api';
 import { getAccessToken } from '../spotify/auth';
 import { Emitter, type AdapterEvent, type PlaybackAdapter } from './PlaybackAdapter';
@@ -56,11 +57,13 @@ function loadSdk(): Promise<void> {
 /**
  * Controls real Spotify playback through the official Web Playback SDK. All state shown in
  * the UI comes from the SDK's own player_state_changed events. Spotify audio is never
- * captured, processed, or altered — damage simulation is cosmetic for this source.
+ * captured, processed, or altered. Disc damage is expressed only through the SDK's own
+ * seek control — the same thing a listener does when scrubbing — so a scratched Spotify disc
+ * skips and repeats, but clicks and dropouts (which would require altering audio) are not used.
  */
 export class SpotifyPlaybackAdapter implements PlaybackAdapter {
   readonly kind = 'spotify' as const;
-  readonly supportsDamage = false;
+  readonly supportsDamage = true;
 
   private player: SdkPlayer | null = null;
   private ready: Promise<string> | null = null;
@@ -69,6 +72,12 @@ export class SpotifyPlaybackAdapter implements PlaybackAdapter {
   private volume = 0.8;
   private last: { playing: boolean; position: number; duration: number; at: number } = { playing: false, position: 0, duration: 0, at: 0 };
   private poll: number | null = null;
+  private damage: DamageEvent[] = [];
+  private trackDamage: { index: number; events: DamageEvent[] } | null = null;
+  private fired = new Set<string>();
+  private checkedPos = 0;
+  private checkedTrack = -1;
+  private seeking = false;
   private events = new Emitter<AdapterEvent>();
   private startedContext = false;
 
@@ -151,20 +160,98 @@ export class SpotifyPlaybackAdapter implements PlaybackAdapter {
 
   private emit() {
     const elapsed = this.last.playing ? (performance.now() - this.last.at) / 1000 : 0;
+    const position = Math.min(this.last.position + elapsed, this.last.duration || Infinity);
     this.events.emit({
       type: 'status',
       status: {
         playing: this.last.playing,
-        position: Math.min(this.last.position + elapsed, this.last.duration || Infinity),
+        position,
         duration: this.last.duration || this.album?.tracks[this.index]?.duration || 0,
         trackIndex: this.index,
       },
     });
+    if (this.last.playing) this.checkDamage(position);
+  }
+
+  private eventsForCurrentTrack(): DamageEvent[] {
+    if (!this.album || !this.damage.length) return [];
+    if (this.trackDamage?.index !== this.index) {
+      const durations = this.album.tracks.map((t) => t.duration || 0);
+      this.trackDamage = { index: this.index, events: eventsForTrack(this.damage, durations, this.index) };
+    }
+    return this.trackDamage.events;
+  }
+
+  /** Fire skip-type damage events as playback passes them, using only SDK seeks. */
+  private checkDamage(pos: number) {
+    if (this.seeking || !this.player) return;
+    if (this.checkedTrack !== this.index || pos < this.checkedPos - 2.5) {
+      // New track or the listener seeked backwards: let damage happen again from here.
+      if (this.checkedTrack !== this.index) this.fired.clear();
+      else for (const k of [...this.fired]) if (Number(k.split(':')[1]) > pos) this.fired.delete(k);
+      this.checkedTrack = this.index;
+      this.checkedPos = pos;
+      return;
+    }
+    const from = this.checkedPos;
+    this.checkedPos = pos;
+    const ev = this.eventsForCurrentTrack().find(
+      (e) => e.t > from && e.t <= pos && e.type !== 'click' && e.type !== 'dropout' && !this.fired.has(`${this.index}:${e.t}`),
+    );
+    if (!ev) return;
+    this.fired.add(`${this.index}:${ev.t}`);
+    void this.performGlitch(ev);
+  }
+
+  private async performGlitch(ev: DamageEvent) {
+    const player = this.player;
+    if (!player) return;
+    this.seeking = true;
+    this.events.emit({ type: 'glitch', kind: ev.type });
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const seekTo = async (sec: number) => {
+      const s = Math.max(0, Math.min(sec, (this.last.duration || Infinity) - 1));
+      await player.seek(Math.round(s * 1000));
+      this.last = { ...this.last, position: s, at: performance.now() };
+    };
+    try {
+      switch (ev.type) {
+        case 'skip':
+          await seekTo(ev.t + ev.len);
+          break;
+        case 'repeat':
+          await seekTo(ev.t);
+          break;
+        case 'stutter':
+          for (let i = 0; i < Math.min(ev.count, 3); i++) {
+            await seekTo(ev.t);
+            await wait(170);
+          }
+          break;
+        case 'skipburst':
+          for (let i = 0; i < Math.min(ev.count, 3); i++) {
+            await seekTo(ev.t);
+            await wait(160);
+          }
+          await seekTo(ev.t + (ev.jump ?? 1));
+          break;
+      }
+    } catch {
+      /* the next state update reflects whatever Spotify actually did */
+    } finally {
+      this.checkedPos = this.last.position;
+      this.seeking = false;
+    }
+  }
+
+  setDamage(events: DamageEvent[]) {
+    this.damage = events;
+    this.trackDamage = null;
   }
 
   private startPolling() {
     if (this.poll !== null) return;
-    this.poll = window.setInterval(() => this.emit(), 250);
+    this.poll = window.setInterval(() => this.emit(), 150);
   }
   private stopPolling() {
     if (this.poll !== null) window.clearInterval(this.poll);
