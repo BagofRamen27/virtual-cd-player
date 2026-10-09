@@ -137,8 +137,8 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
     if (autoplay) await this.play();
   }
 
-  setVolume(v: number) {
-    audioEngine.setVolume(v);
+  setVolume() {
+    // Output level is owned by the hi-fi DSP chain (see hifi/bridge.ts).
   }
 
   setDamage(events: DamageEvent[]) {

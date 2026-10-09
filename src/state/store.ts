@@ -118,8 +118,10 @@ interface PlayerStore {
 }
 
 const localAdapter = new LocalAudioPlaybackAdapter();
-const spotifyAdapter = new SpotifyPlaybackAdapter();
+export const spotifyAdapter = new SpotifyPlaybackAdapter();
 let active: PlaybackAdapter | null = null;
+/** Which kind of adapter is currently playing — the hi-fi bridge needs to know if DSP applies. */
+export const activeAdapterKind = () => active?.kind ?? null;
 let pendingStop = false;
 let noticeId = 0;
 let initStarted = false;
@@ -226,8 +228,6 @@ export const usePlayer = create<PlayerStore>((set, get) => {
         selectedAlbumId: demo.id,
         ready: true,
       });
-      localAdapter.setVolume(get().settings.volume);
-      spotifyAdapter.setVolume(get().settings.volume);
 
       if (spotifyAuth.spotifyConfigured()) {
         const cb = await spotifyAuth.handleCallback();
@@ -426,8 +426,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       if (get().state === 'STOPPED') go('READY');
     },
     setVolume(v) {
-      localAdapter.setVolume(v);
-      spotifyAdapter.setVolume(v);
+      // The hi-fi bridge turns this (plus routing and amp state) into actual output levels.
       get().updateSettings({ volume: v });
     },
 

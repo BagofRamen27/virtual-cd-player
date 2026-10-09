@@ -1,5 +1,7 @@
 import workletUrl from './scratch-worklet.js?url';
 import type { DamageEvent } from '../types';
+import { HifiChain, type MeterReading } from '../hifi/HifiChain';
+import { FLAT_PARAMS, type DspParams } from '../hifi/dsp';
 
 export type EngineMessage =
   | { type: 'pos'; seconds: number }
@@ -8,16 +10,17 @@ export type EngineMessage =
 
 /**
  * Web Audio graph for local audio:
- *   AudioWorklet (decoded track + scratch simulation) → volume → gentle limiter → speakers.
+ *   AudioWorklet (decoded track + scratch simulation) → hi-fi chain (route, amp, speaker /
+ *   headphone emulation, volume) → gentle limiter → speakers.
  * The limiter keeps glitch transients and loud masters within a comfortable range.
  */
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
-  private gain: GainNode | null = null;
+  private chain: HifiChain | null = null;
+  private params: DspParams = FLAT_PARAMS;
   private starting: Promise<void> | null = null;
   private listeners = new Set<(m: EngineMessage) => void>();
-  private volume = 0.8;
 
   get sampleRate(): number {
     return this.ctx?.sampleRate ?? 44100;
@@ -37,19 +40,20 @@ export class AudioEngine {
           numberOfOutputs: 1,
           outputChannelCount: [2],
         });
-        const gain = ctx.createGain();
-        gain.gain.value = this.volume;
+        const chain = new HifiChain(ctx);
+        chain.apply(this.params);
         const limiter = ctx.createDynamicsCompressor();
         limiter.threshold.value = -6;
         limiter.knee.value = 6;
         limiter.ratio.value = 8;
         limiter.attack.value = 0.003;
         limiter.release.value = 0.15;
-        node.connect(gain).connect(limiter).connect(ctx.destination);
+        node.connect(chain.input);
+        chain.output.connect(limiter).connect(ctx.destination);
         node.port.onmessage = (e) => this.handle(e.data);
         this.ctx = ctx;
         this.node = node;
-        this.gain = gain;
+        this.chain = chain;
       })();
     }
     await this.starting;
@@ -115,9 +119,14 @@ export class AudioEngine {
     this.node?.port.postMessage({ type: 'unload' });
   }
 
-  setVolume(v: number): void {
-    this.volume = v;
-    if (this.gain && this.ctx) this.gain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.03);
+  /** Volume, routing and hi-fi emulation all live in the DSP chain. */
+  setDsp(params: DspParams): void {
+    this.params = params;
+    this.chain?.apply(params);
+  }
+
+  readMeters(): MeterReading | null {
+    return this.chain?.readMeters() ?? null;
   }
 }
 

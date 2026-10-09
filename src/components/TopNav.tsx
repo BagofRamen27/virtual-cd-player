@@ -1,4 +1,5 @@
 import { usePlayer } from '../state/store';
+import { useHifi } from '../hifi/store';
 import { Icon, IconButton, Pill } from './ui';
 
 function SpotifyStatus() {
@@ -49,7 +50,10 @@ export function TopNav() {
   const setUi = usePlayer((s) => s.setUi);
   const spotifyConnected = usePlayer((s) => s.spotify.status === 'connected');
 
+  const view = useHifi((s) => s.view);
+  const setView = useHifi((s) => s.setView);
   const jump = (id: string, tab: 'library' | 'playing') => {
+    setView('player');
     setUi({ mobileTab: tab });
     requestAnimationFrame(() => {
       const el = document.getElementById(id);
@@ -72,6 +76,20 @@ export function TopNav() {
             Now Playing
           </button>
         </nav>
+        <div role="tablist" aria-label="Mode" className="flex rounded-full border border-line p-0.5">
+          {(['player', 'room'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`h-8 rounded-full px-3 text-[13px] font-medium transition-colors ${view === v ? 'bg-ink text-bg' : 'text-ink-soft hover:text-ink'}`}
+            >
+              {v === 'player' ? 'Player' : 'Hi-Fi Room'}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">
         {!spotifyConnected && (

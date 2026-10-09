@@ -8,6 +8,9 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { ScratchEditor } from './components/ScratchEditor';
 import { NoticeToast } from './components/NoticeToast';
 import { useMediaQuery } from './lib/useMediaQuery';
+import { useHifi } from './hifi/store';
+import { startHifiBridge } from './hifi/bridge';
+import { RackView } from './hifi/ui/RackView';
 
 function isTyping(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -49,8 +52,10 @@ export default function App() {
   const setUi = usePlayer((s) => s.setUi);
   const desktop = useMediaQuery('(min-width: 1024px)');
 
+  const view = useHifi((s) => s.view);
   useEffect(() => {
     void usePlayer.getState().init();
+    startHifiBridge();
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -66,6 +71,10 @@ export default function App() {
       <TopNav />
       {!ready ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted">Opening the shelf…</div>
+      ) : view === 'room' ? (
+        <main className="flex min-h-0 flex-1 flex-col">
+          <RackView />
+        </main>
       ) : (
         <main className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[300px_minmax(0,1fr)_340px] lg:grid-rows-1 xl:grid-cols-[330px_minmax(0,1fr)_370px]">
           {desktop && (

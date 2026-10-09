@@ -66,6 +66,70 @@ The audio runs in an AudioWorklet (`src/audio/scratch-worklet.js`) that plays th
 
 Damage profiles are saved per album in IndexedDB.
 
+## Hi-Fi Room (virtual hi-fi lab) — Phase 1
+
+Switch to **Hi-Fi Room** in the header. You build a small system from period gear, wire it with typed cables, and hear the result through a real Web Audio DSP chain.
+
+### What's in Phase 1
+
+| Slot | Equipment (original, fictional designs, *inspired by* a category) |
+| --- | --- |
+| Sources | **DiscDeck DD-1** (the existing portable: fixed 3.5 mm line out plus a volume-controlled headphone jack) · **Sundown CD Boombox** (2000s, built-in speakers, headphone jack mutes them) |
+| Amplifier | **Ashford A-60** (1980s silver-faced integrated): power, volume, bass, treble, balance, loudness, CD/AUX selector, Speakers A, 6.35 mm phones jack (mutes speakers), real VU meters |
+| Speakers | **Walnut Monitor B2** (premium bookshelf) · **Budget Mini Speakers** |
+| Headphones | **Studio Monitor Headphones** · **Bundled Earbuds** |
+
+The 3D knobs and buttons work for real: drag to turn, scroll to nudge, double-click to reset. Every control also has a slider or toggle in the inspector, so the whole room works from the keyboard. The VU meters, speaker cones and boombox grilles move with the actual analysed output signal, not a canned animation.
+
+### Wiring
+
+The **Wiring (back panels)** tab shows every jack. Click a jack and then another to connect them, or drag between them; click a connected jack to unplug it. While you hold a cable, compatible jacks glow and incompatible ones dim. Connections are checked by a typed-port system (`src/hifi/routing.ts`):
+
+- **Valid:** CD line out → amp CD/AUX in (3.5 mm→RCA), amp Speakers A → passive speakers (speaker wire), headphones into the amp's or source's Phones jack (the 6.35 mm adapter is used automatically).
+- **Refused, with a reason:** speakers on an unamplified line out, speaker-level output into headphones or a line input, output → output, and a second cable in an occupied jack.
+- **Routing rules:** the amp's input selector chooses what you hear. Selecting an input with nothing plugged in gives silence plus an explanation. A switched-off amp is silent. Plugging in headphones mutes the speakers (a per-model rule), and unplugging them brings the speakers back.
+
+**Auto-connect** and the **Setups** presets (*Living-room hi-fi*, *2003 Bedroom Boombox*, *Budget 1998 Dorm*, *Late-night headphones*, *Portable + earbuds*) wire a system in one click. Your rack, cables and per-amp knob settings persist across reloads and gear swaps. Cables the new gear can't accept are unplugged, and the app tells you so.
+
+### Audio chain (`src/hifi/HifiChain.ts`)
+
+```
+scratch worklet → route/source gain → amp tone (bass/treble shelves + loudness) → balance → amp volume
+   ├─ emulation: speaker/headphone EQ → level-dependent soft clipper → width / channel mismatch / level trim
+   └─ bypass (reference)
+→ meters → limiter → output
+```
+
+- **Volume** uses an audio taper (0 dB maximum, never above unity) and is smoothed, so it never clicks. A gentle limiter follows the chain.
+- **Bass and treble** are real ±12 dB shelves. **Loudness** lifts lows (and a little of the highs) more as the volume drops.
+- **Speaker and headphone profiles** combine EQ, resonances, bass roll-off, stereo width, channel mismatch and drive-dependent distortion. The boombox narrows the stereo image and squashes/distorts as you turn it up.
+- **Compare tools:** *Emulation bypass* (reference), *level-matched* switching (on by default, so cheap vs premium comparisons aren't just "louder wins"), and an *emulation intensity* slider (0 = neutral).
+- **Live displays:** the inspector shows a frequency-response plot of the whole chain, input and output meters, and a clipping indicator.
+- **All gear is always in the graph.** Changing equipment retunes parameters rather than rebuilding the graph, so swaps don't glitch.
+
+### Honesty notes
+
+- **No measured data.** All sound profiles are labelled *Illustrative*. None of them is a measurement of a real product, and no brand or model is claimed.
+- **Cables don't change the tone.** Ordinary working cables don't meaningfully change the sound, so cables here define the route, not the tone. (A deliberately faulty cable is a possible later, explicitly fictional option.)
+- **Spotify: visual-only emulation.** Spotify audio plays inside Spotify's protected player and can't be routed through Web Audio, and Spotify's terms don't allow altering it. For a Spotify disc, only the resulting **volume** reaches it, including silence when the route is invalid. Tone, speaker and headphone emulation are shown as visual-only. Full DSP applies to local files and the demo disc.
+- **The DD-1's line out is fixed-level**, as on real portables: its volume control only affects the headphone jack.
+
+### Audible A/B check (demo disc)
+
+1. **Load the setup.** In *Hi-Fi Room*, choose **Living-room hi-fi**, insert *Evening Session* from the disc menu, and press play.
+2. **Bass.** Drag the amp's **Bass** knob to +12 dB. The low pads get noticeably fuller, and the dashed and solid curves separate below ~150 Hz.
+3. **Volume.** Turn the big **Volume** knob. The level changes smoothly and the VU needles follow.
+4. **Silence.** Set the input selector to **AUX**. You get silence and an amber explanation. Set it back to **CD**.
+5. **Speakers.** Click **Swap to budget mini speakers**. The bass gets thinner and the sound boxier at a similar loudness. Toggle **Emulation on/off** for the reference.
+6. **Headphones.** Load **Late-night headphones**, then swap studio headphones ↔ earbuds. The earbuds are thinner and brighter, at a matched level.
+7. **Boombox.** Load **2003 Bedroom Boombox** and turn its volume knob up. It's narrow and boxy, and compresses when pushed.
+
+Automated checks: `tests/hifi.test.ts` covers connector validation, route construction (including headphone insertion/removal and device swaps) and control mapping (taper, a ±12 dB bass shelf measured at 30 Hz vs 2 kHz, balance, loudness, profile differences, neutral intensity).
+
+### Coming in later phases
+
+More eras and devices (a 1980s tray-loading player, 1990s changer and receiver, 2000s mini system, a modern transport with optical/coax into a DAC amp), more speaker and headphone profiles, anti-skip on the portable, separates (preamp + power amp), room acoustics, and a blind level-matched comparison lab.
+
 ## Spotify setup
 
 Spotify is optional. Without it, the app says so plainly and never pretends to be connected.
