@@ -1,0 +1,180 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --bg: #f4efe7;
+  --surface: #fbf8f3;
+  --surface-2: #e7ddce;
+  --ink: #251f1b;
+  --ink-soft: #594334;
+  --muted: #7a6858;
+  --line: rgba(89, 67, 52, 0.16);
+  --accent: #b77b56;
+  --accent-ink: #8f5a3a;
+  --amber: #e8b66b;
+  --focus: #b77b56;
+  --stage: radial-gradient(120% 90% at 30% 10%, #fbf3e6 0%, #efe4d3 45%, #e4d6c3 100%);
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #1d1815;
+  --surface: #251f1b;
+  --surface-2: #322a24;
+  --ink: #f4efe7;
+  --ink-soft: #e7ddce;
+  --muted: #b4a594;
+  --line: rgba(232, 182, 107, 0.14);
+  --accent: #e8b66b;
+  --accent-ink: #e8b66b;
+  --amber: #e8b66b;
+  --focus: #e8b66b;
+  --stage: radial-gradient(120% 90% at 70% 0%, #3a2c22 0%, #2a221d 45%, #1d1815 100%);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-amber: var(--amber);
+  --color-ivory: #f4efe7;
+  --color-oat: #e7ddce;
+  --color-walnut: #594334;
+  --color-espresso: #251f1b;
+  --color-copper: #b77b56;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle paper grain over everything */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme='dark'] body::after,
+body[data-theme='dark']::after {
+  mix-blend-mode: screen;
+  opacity: 0.04;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.sr-only-focusable:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Range inputs styled as warm sliders */
+input[type='range'].dd-range {
+  appearance: none;
+  background: transparent;
+  width: 100%;
+  height: 20px;
+  cursor: pointer;
+}
+input[type='range'].dd-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--surface-2) var(--fill, 0%));
+}
+input[type='range'].dd-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+input[type='range'].dd-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+input[type='range'].dd-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(37, 31, 27, 0.25);
+}
+input[type='range'].dd-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+}
+
+/* Jewel case: the disc slides out on hover / focus */
+.jewel .peek-disc {
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(0) rotate(0deg);
+}
+.jewel:hover .peek-disc,
+.jewel:focus-within .peek-disc,
+.jewel[data-selected='true'] .peek-disc {
+  transform: translateX(32%) rotate(40deg);
+}
+
+.cd-surface {
+  background:
+    radial-gradient(circle at center, transparent 0 9%, rgba(255, 255, 255, 0.55) 9.5% 10.5%, transparent 11%),
+    conic-gradient(from 20deg, #e9eaee, #f7e7d0, #cfe3e8, #e8d4f0, #f4f1e8, #d6e7da, #f1dccb, #e9eaee);
+}
+
+@keyframes dd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dd-spin {
+  animation: dd-spin 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+  .dd-spin {
+    animation-duration: 6s;
+  }
+}
