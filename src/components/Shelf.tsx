@@ -4,6 +4,8 @@ import type { Album, SourceKind } from '../types';
 import { JewelCase } from './JewelCase';
 import { Button, Icon } from './ui';
 import { CoverUpload } from './CoverUpload';
+import { TrackMarkers } from './TrackMarkers';
+import { markerTime } from '../lib/trackMarkers';
 import { store } from '../db/idb';
 
 type Filter = 'all' | SourceKind;
@@ -174,13 +176,22 @@ export function Shelf() {
               <Icon name="disc" size={15} /> {selected.id === insertedId ? 'In player' : 'Insert disc'}
             </Button>
           </div>
-          {selected.source === 'local' && <details className="mt-3 text-sm">
-            <summary className="cursor-pointer text-ink-soft">Album cover</summary>
+          {selected.source === 'local' && <div className="mt-3 text-sm">
+            <p className="text-ink-soft">Album cover</p>
             <div className="mt-2"><CoverUpload key={selected.id} value={selected.coverUrl} onChange={async coverUrl => {
               const updated = { ...selected, coverUrl };
-              await store.saveAlbum(updated);
+              await store.updateAlbum(updated);
               usePlayer.setState(state => ({ albums: state.albums.map(album => album.id === updated.id ? updated : album) }));
             }} /></div>
+          </div>}
+          {selected.source === 'local' && selected.tracks.length > 0 && selected.tracks[0].fileKey && selected.tracks.every(track => track.fileKey === selected.tracks[0].fileKey) && <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-ink-soft">Split whole album into songs</summary>
+            {selected.id === insertedId ? <p className="mt-2 text-xs text-muted">Eject this disc before changing its tracks.</p> : <TrackMarkers key={selected.id} duration={Math.max(...selected.tracks.map(track => (track.startOffset || 0) + track.duration))} initialValue={selected.tracks.length > 1 ? selected.tracks.map(track => `${markerTime(track.startOffset || 0)} ${track.title}`).join('\n') : ''} onApply={async markers => {
+              const original = selected.tracks[0];
+              const updated = { ...selected, tracks: markers.map(marker => ({ ...original, id: `${selected.id}/${crypto.randomUUID()}`, title: marker.title, duration: marker.duration, startOffset: marker.start })) };
+              await store.updateAlbum(updated);
+              usePlayer.setState(state => ({ albums: state.albums.map(album => album.id === updated.id ? updated : album) }));
+            }} />}
           </details>}
         </div>
       )}

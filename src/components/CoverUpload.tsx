@@ -7,9 +7,10 @@ export function CoverUpload({ value, disabled, onChange, onBusyChange }: {
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
   async function upload(file?: File) {
     if (!file || busy || disabled) return;
-    setBusy(true); onBusyChange?.(true); setError('');
+    setBusy(true); onBusyChange?.(true); setError(''); setSaved(false);
     let bitmap: ImageBitmap | undefined;
     try {
       if (file.size > 10 * 1024 * 1024) throw new Error('Choose an image smaller than 10 MB.');
@@ -21,7 +22,8 @@ export function CoverUpload({ value, disabled, onChange, onBusyChange }: {
       context.fillStyle = '#ffffff'; context.fillRect(0, 0, 600, 600);
       context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 600, 600);
       await onChange(canvas.toDataURL('image/jpeg', 0.9));
-    } catch (error) { setError(error instanceof Error && /Choose|unavailable/.test(error.message) ? error.message : 'Could not read this image. Try a JPG, PNG or WebP file.'); }
+      setSaved(true);
+    } catch (error) { setError(error instanceof Error && /Choose|unavailable|Could not save/.test(error.message) ? error.message : 'Could not read this image. Try a JPG, PNG or WebP file.'); }
     finally { bitmap?.close(); setBusy(false); onBusyChange?.(false); }
   }
   return <div className="space-y-2">
@@ -32,5 +34,6 @@ export function CoverUpload({ value, disabled, onChange, onBusyChange }: {
     <p className="text-xs text-muted">JPG, PNG or WebP · up to 10 MB · cropped to a square. Saved in this browser.</p>
     <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
     {error && <p role="alert" className="text-xs text-ink-soft">{error}</p>}
+    {saved && <p role="status" className="text-xs text-ink-soft">Album cover updated.</p>}
   </div>;
 }

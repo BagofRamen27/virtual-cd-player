@@ -2,6 +2,7 @@ import { AudioEngine, audioEngine } from '../audio/AudioEngine';
 import { eventsForTrack } from '../audio/damage';
 import { renderDemoTrack } from '../audio/demoAlbum';
 import { store } from '../db/idb';
+import { segmentFrames } from '../lib/trackMarkers';
 import type { Album, DamageEvent } from '../types';
 import { Emitter, type AdapterEvent, type PlaybackAdapter } from './PlaybackAdapter';
 
@@ -18,6 +19,7 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
   private loaded = false;
   private damage: DamageEvent[] = [];
   private token = 0;
+  private decodedFile: { key: string; buffer: AudioBuffer } | null = null;
   private events = new Emitter<AdapterEvent>();
 
   constructor() {
@@ -77,7 +79,17 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
       );
     }
     try {
-      return await audioEngine.decode(await blob.arrayBuffer());
+      const track = album.tracks[i];
+      const cached = this.decodedFile;
+      const buffer = cached && cached.key === key ? cached.buffer : await audioEngine.decode(await blob.arrayBuffer());
+      // Keep only one whole-album decode so skipping songs doesn't decode it repeatedly.
+      if (this.album === album) this.decodedFile = track.startOffset === undefined ? null : { key: key!, buffer };
+      if (track.startOffset === undefined) return buffer;
+      const { from, to } = segmentFrames(track.startOffset, track.duration, buffer.sampleRate, buffer.length);
+      const context = await audioEngine.ensure();
+      const song = context.createBuffer(buffer.numberOfChannels, to - from, buffer.sampleRate);
+      for (let channel = 0; channel < buffer.numberOfChannels; channel++) song.copyToChannel(buffer.getChannelData(channel).subarray(from, to), channel);
+      return song;
     } catch {
       throw new Error(`“${album.tracks[i].title}” could not be decoded by this browser.`);
     }
@@ -100,6 +112,7 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
 
   async load(album: Album, trackIndex: number) {
     if (!AudioEngine.isSupported()) throw new Error('This browser does not support the Web Audio features DiscDeck needs.');
+    this.decodedFile = null;
     this.album = album;
     this.playing = false;
     await this.loadTrack(trackIndex);
@@ -152,6 +165,7 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
 
   async unload() {
     this.token++;
+    this.decodedFile = null;
     audioEngine.unload();
     this.album = null;
     this.loaded = false;
