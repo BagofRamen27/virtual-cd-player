@@ -2,6 +2,7 @@ import { usePlayer } from '../state/store';
 import { useHifi } from '../hifi/store';
 import { Icon, IconButton, Pill } from './ui';
 import { BurnCD } from './BurnCD';
+import { SPOTIFY_ENABLED } from '../spotify/config';
 
 function SpotifyStatus() {
   const spotify = usePlayer((s) => s.spotify);
@@ -99,14 +100,14 @@ export function TopNav() {
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">
         <BurnCD />
-        {!spotifyConnected && (
+        {SPOTIFY_ENABLED && !spotifyConnected && (
           <span className="hidden sm:inline">
             <Pill tone="warn">Demo mode</Pill>
           </span>
         )}
-        <span className="hidden sm:inline-flex">
+        {SPOTIFY_ENABLED && <span className="hidden sm:inline-flex">
           <SpotifyStatus />
-        </span>
+        </span>}
         <IconButton label="Settings" onClick={() => setUi({ settingsOpen: true })}>
           <Icon name="settings" />
         </IconButton>

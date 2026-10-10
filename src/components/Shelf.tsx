@@ -3,12 +3,15 @@ import { usePlayer, useSelectedAlbum } from '../state/store';
 import type { Album, SourceKind } from '../types';
 import { JewelCase } from './JewelCase';
 import { Button, Icon } from './ui';
+import { CoverUpload } from './CoverUpload';
+import { store } from '../db/idb';
+import { SPOTIFY_ENABLED } from '../spotify/config';
 
 type Filter = 'all' | SourceKind;
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'local', label: 'Local' },
-  { id: 'spotify', label: 'Spotify' },
+  ...(SPOTIFY_ENABLED ? [{ id: 'spotify' as const, label: 'Spotify' }] : []),
   { id: 'demo', label: 'Demo' },
 ];
 
@@ -58,7 +61,7 @@ export function Shelf() {
   const files = useRef<HTMLInputElement>(null);
   const folder = useRef<HTMLInputElement>(null);
 
-  const show = (src: SourceKind) => filter === 'all' || filter === src;
+  const show = (src: SourceKind) => (src !== 'spotify' || SPOTIFY_ENABLED) && (filter === 'all' || filter === src);
   const local = useMemo(() => albums.filter((a) => a.source === 'local' && matches(a, query)), [albums, query]);
   const demo = useMemo(() => albums.filter((a) => a.source === 'demo' && matches(a, query)), [albums, query]);
   const saved = useMemo(() => spotifyAlbums.filter((a) => matches(a, query)), [spotifyAlbums, query]);
@@ -199,6 +202,14 @@ export function Shelf() {
               <Icon name="disc" size={15} /> {selected.id === insertedId ? 'In player' : 'Insert disc'}
             </Button>
           </div>
+          {selected.source === 'local' && <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-ink-soft">Album cover</summary>
+            <div className="mt-2"><CoverUpload key={selected.id} value={selected.coverUrl} onChange={async coverUrl => {
+              const updated = { ...selected, coverUrl };
+              await store.saveAlbum(updated);
+              usePlayer.setState(state => ({ albums: state.albums.map(album => album.id === updated.id ? updated : album) }));
+            }} /></div>
+          </details>}
         </div>
       )}
     </div>

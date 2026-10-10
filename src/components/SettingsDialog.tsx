@@ -1,5 +1,6 @@
 import { usePlayer } from '../state/store';
 import { redirectUri, spotifyConfigured } from '../spotify/auth';
+import { SPOTIFY_ENABLED } from '../spotify/config';
 import { store } from '../db/idb';
 import { Button, Dialog } from './ui';
 
@@ -69,7 +70,7 @@ export function SettingsDialog() {
         <Toggle label="Mechanical sounds" hint="Quiet button clicks and lid sounds." checked={settings.sounds} onChange={(v) => updateSettings({ sounds: v })} />
       </section>
 
-      <section className="mt-6">
+      {SPOTIFY_ENABLED && <section className="mt-6">
         <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Spotify</h3>
         {!spotifyConfigured() ? (
           <div className="rounded-2xl bg-surface-2/50 p-4 text-sm text-ink-soft">
@@ -105,7 +106,7 @@ export function SettingsDialog() {
             </p>
           </div>
         )}
-      </section>
+      </section>}
 
       <section className="mt-6">
         <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Keyboard</h3>

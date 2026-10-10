@@ -2,6 +2,7 @@
  * Spotify Authorization Code flow with PKCE. Runs entirely in the browser with a public
  * client ID — no client secret is ever needed or shipped.
  */
+import { SPOTIFY_ENABLED } from './config';
 const CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined)?.trim() ?? '';
 const REDIRECT_URI =
   (import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string | undefined)?.trim() ||
@@ -28,7 +29,7 @@ interface StoredToken {
 }
 
 export function spotifyConfigured(): boolean {
-  return CLIENT_ID.length > 0;
+  return SPOTIFY_ENABLED && CLIENT_ID.length > 0;
 }
 
 export function redirectUri(): string {

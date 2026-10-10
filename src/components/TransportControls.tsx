@@ -1,5 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
-import { usePlayer } from '../state/store';
+import { useInsertedAlbum, usePlayer } from '../state/store';
 import { Icon } from './ui';
 
 /** Accessible DOM twin of the player's physical buttons. */
@@ -8,6 +8,8 @@ export function TransportControls({ compact = false }: { compact?: boolean }) {
     useShallow((s) => ({ state: s.state, powered: s.powered, lidOpen: s.lidOpen, hasDisc: !!s.insertedAlbumId, selected: s.selectedAlbumId })),
   );
   const a = usePlayer.getState();
+  const album = useInsertedAlbum();
+  const trackIndex = usePlayer(s => s.trackIndex);
   const playing = state === 'PLAYING';
   const busy = state === 'LOADING' || state === 'EJECTING';
   const btn =
@@ -40,6 +42,12 @@ export function TransportControls({ compact = false }: { compact?: boolean }) {
       <button type="button" className={`${btn} ${size}`} aria-label={hasDisc ? 'Eject disc' : 'Open lid'} onClick={() => void a.eject()} disabled={busy}>
         <Icon name="eject" />
       </button>
+      {album && <label className="flex min-w-0 items-center gap-2 text-xs text-ink-soft">
+        <span>Track</span>
+        <select aria-label="Play a track" value={trackIndex} disabled={busy} onChange={event => void a.selectTrack(Number(event.target.value), true)} className="h-10 max-w-[220px] rounded-xl border border-line bg-surface px-2 text-sm text-ink">
+          {album.tracks.map((track, index) => <option key={track.id} value={index}>{index + 1}. {track.title}</option>)}
+        </select>
+      </label>}
       {!compact && (
         <>
           <span className="mx-1 hidden h-6 w-px bg-line sm:block" aria-hidden="true" />

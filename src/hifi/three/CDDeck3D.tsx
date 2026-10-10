@@ -30,6 +30,7 @@ export function CDDeck3D() {
     g.fillText(source.manufacturerInspiration, 65, 70);
     g.font = '20px Arial'; g.fillText('COMPACT DISC DIGITAL AUDIO', 65, 104);
     g.fillText('PLAY / PAUSE', 1340, 335); g.fillText('STOP', 1560, 335); g.fillText('OPEN / CLOSE', 1710, 335);
+    g.font = '600 24px Arial'; g.fillText('PREV', 1130, 95); g.fillText('NEXT', 1300, 95);
     const texture = new THREE.CanvasTexture(c); texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8; return texture;
   }, [source.id, source.manufacturerInspiration, silver]);
@@ -86,6 +87,8 @@ export function CDDeck3D() {
       <PanelButton position={[width * 0.19, height * 0.28, front + 0.01]} size={[0.16, 0.08]} label="Play / pause" onPress={() => void p.togglePlay()} />
       <PanelButton position={[width * 0.31, height * 0.28, front + 0.01]} size={[0.1, 0.08]} label="Stop" onPress={() => void p.stop()} />
       <PanelButton position={[width * 0.42, height * 0.28, front + 0.01]} size={[0.1, 0.08]} label="Open / close" onPress={p.toggleLid} />
+      <PanelButton position={[width * 0.08, height * 0.95, front + 0.01]} size={[0.12, 0.07]} label="Previous track" onPress={() => void p.prev()} />
+      <PanelButton position={[width * 0.17, height * 0.95, front + 0.01]} size={[0.12, 0.07]} label="Next track" onPress={() => void p.next()} />
       {[-1, 1].flatMap((x) => [-1, 1].map((z) => (
         <mesh key={`${x}${z}`} position={[x * (width / 2 - 0.15), 0.025, z * 0.6]}>
           <cylinderGeometry args={[0.06, 0.065, 0.05, 24]} /><meshStandardMaterial color="#151617" roughness={0.8} />
