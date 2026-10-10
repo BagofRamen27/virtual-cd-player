@@ -2,7 +2,7 @@
 
 A cozy 3D virtual CD player. Browse a shelf of jewel cases, pick up a disc, open the smoked-acrylic lid, drop it onto the spindle and listen. Local audio files can be scratched, and the scratches skip, stutter and drop out in the same places every time you play the disc.
 
-Built with React, TypeScript, Vite, Tailwind CSS, React Three Fiber, Three.js and Drei. Local audio runs through the Web Audio API and an AudioWorklet. Spotify uses its official PKCE login and the Web Playback SDK.
+Built with React, TypeScript, Vite, Tailwind CSS, React Three Fiber, Three.js and Drei. Local audio runs through the Web Audio API and an AudioWorklet.
 
 ## Quick start
 
@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. No configuration is needed. Without Spotify credentials DiscDeck runs in **demo mode**, which is labelled in the header:
+Open <http://127.0.0.1:5173>. No configuration is needed. The shelf includes a demo disc and supports your own local music:
 
 - **Evening Session** is a demo disc of three short ambient pieces synthesized in your browser, so nothing is downloaded and no licensing is involved.
 - **Add your own music** with *Choose files* / *Folder*, or by dropping audio files on the shelf. Files are stored in your browser (IndexedDB) and never uploaded anywhere.
@@ -111,7 +111,6 @@ scratch worklet → route/source gain → amp tone (bass/treble shelves + loudne
 
 - **No measured data.** All sound profiles are labelled *Illustrative*. None of them is a measurement of a real product, and no brand or model is claimed.
 - **Cables don't change the tone.** Ordinary working cables don't meaningfully change the sound, so cables here define the route, not the tone. (A deliberately faulty cable is a possible later, explicitly fictional option.)
-- **Spotify: visual-only emulation.** Spotify audio plays inside Spotify's protected player and can't be routed through Web Audio, and Spotify's terms don't allow altering it. For a Spotify disc, only the resulting **volume** reaches it, including silence when the route is invalid. Tone, speaker and headphone emulation are shown as visual-only. Full DSP applies to local files and the demo disc.
 - **The DD-1's line out is fixed-level**, as on real portables: its volume control only affects the headphone jack.
 
 ### Audible A/B check (demo disc)
@@ -158,46 +157,12 @@ None of these are bundled, and the procedural versions aren't claimed to be phot
 
 More eras and devices (a 1980s tray-loading player, 1990s changer and receiver, 2000s mini system, a modern transport with optical/coax into a DAC amp), more speaker and headphone profiles, anti-skip on the portable, separates (preamp + power amp), room acoustics, and a blind level-matched comparison lab.
 
-## Spotify setup
-
-Spotify is optional. Without it, the app says so plainly and never pretends to be connected.
-
-1. Create an app at <https://developer.spotify.com/dashboard>.
-2. Under **Redirect URIs** add `http://127.0.0.1:5173/callback` for local development. Add `https://<your-domain>/callback` for production. Spotify requires HTTPS or a loopback IP literal; `localhost` is not accepted.
-3. Under **APIs used**, enable **Web API** and **Web Playback SDK**.
-4. Copy `.env.example` to `.env` and fill it in:
-
-   ```bash
-   VITE_SPOTIFY_CLIENT_ID=your_client_id
-   VITE_SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/callback
-   ```
-
-5. Restart `npm run dev` and click **Connect Spotify**.
-
-**Who can connect:** while your Spotify app is in *development mode*, only the Spotify accounts you add under **Users and Access** in the dashboard can log in. Opening it to the public requires applying to Spotify for extended quota.
-
-**What works:**
-- Login uses Authorization Code with PKCE. No client secret exists anywhere in this code.
-- Your saved albums appear on the shelf as virtual CDs. Press Enter in the search box to search Spotify's catalogue.
-- With **Spotify Premium**, the Web Playback SDK creates a "DiscDeck" device in your browser and plays the album for real.
-- Transport, progress, the track list, the LCD and the spinning disc follow the SDK's own reported state. Nothing about playback is simulated.
-
-**Limitations, by design and by Spotify's terms:**
-- Free accounts can browse but cannot play in the browser. DiscDeck says this clearly.
-- Spotify audio is never captured, recorded, processed or altered. A scratched Spotify disc still skips, but only through the Web Playback SDK's own `seek()`, the same thing a listener does when scrubbing. Skips, repeats and stutters are approximated with quick seeks, but clicks and dropouts would mean altering the audio, so they are not used on Spotify.
-- Artwork and metadata are attributed to Spotify, and each album links back with *Open in Spotify*.
-- The Web Playback SDK needs a desktop browser with DRM (EME) support. Some mobile browsers, and Chromium builds without Widevine, report an initialization error, which DiscDeck displays.
-- Spotify periodically changes which Web API endpoints are open to development-mode apps. If a request is refused, the error message is shown as-is.
-
-> Note: the Spotify flow is implemented against Spotify's documented APIs but has not been run end-to-end with real credentials in this repository's automated checks. Local playback, scratches, persistence and the 3D interactions have been exercised in a headless Chromium run.
-
 ## Deploying to Vercel (or any static host)
 
 DiscDeck is a static single-page app.
 
 1. Import this repository into [Vercel](https://vercel.com/new). It auto-detects Vite: the build command is `npm run build` and the output directory is `dist`.
-2. Add the environment variables `VITE_SPOTIFY_CLIENT_ID` and `VITE_SPOTIFY_REDIRECT_URI` (`https://<your-app>.vercel.app/callback`) if you want Spotify. Then add that same redirect URI in the Spotify dashboard.
-3. Deploy. `vercel.json` rewrites every path to `index.html`, so the `/callback` route works.
+2. Deploy. `vercel.json` provides the single-page app fallback to `index.html`.
 
 On Netlify, Cloudflare Pages or GitHub Pages, use the same build settings plus an SPA fallback (all paths → `index.html`).
 
@@ -217,8 +182,6 @@ src/
   playback/
     PlaybackAdapter.ts        shared adapter interface
     LocalAudioPlaybackAdapter.ts
-    SpotifyPlaybackAdapter.ts Web Playback SDK, real state only
-  spotify/auth.ts, api.ts     PKCE login, token refresh, Web API calls
   db/idb.ts                   IndexedDB: albums, audio blobs, damage, settings
   lib/                        ID3 reader, importer, cover art, LCD text, helpers
   three/

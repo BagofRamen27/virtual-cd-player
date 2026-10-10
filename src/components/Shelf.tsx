@@ -5,13 +5,11 @@ import { JewelCase } from './JewelCase';
 import { Button, Icon } from './ui';
 import { CoverUpload } from './CoverUpload';
 import { store } from '../db/idb';
-import { SPOTIFY_ENABLED } from '../spotify/config';
 
 type Filter = 'all' | SourceKind;
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'local', label: 'Local' },
-  ...(SPOTIFY_ENABLED ? [{ id: 'spotify' as const, label: 'Spotify' }] : []),
   { id: 'demo', label: 'Demo' },
 ];
 
@@ -48,12 +46,9 @@ function Grid({ albums, label }: { albums: Album[]; label: string }) {
 
 export function Shelf() {
   const albums = usePlayer((s) => s.albums);
-  const spotifyAlbums = usePlayer((s) => s.spotifyAlbums);
-  const spotifyResults = usePlayer((s) => s.spotifyResults);
-  const spotify = usePlayer((s) => s.spotify);
   const importing = usePlayer((s) => s.importing);
   const insertedId = usePlayer((s) => s.insertedAlbumId);
-  const { importLocal, insertDisc, searchSpotify, removeAlbum, loginSpotify } = usePlayer.getState();
+  const { importLocal, insertDisc, removeAlbum } = usePlayer.getState();
   const selected = useSelectedAlbum();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -61,11 +56,10 @@ export function Shelf() {
   const files = useRef<HTMLInputElement>(null);
   const folder = useRef<HTMLInputElement>(null);
 
-  const show = (src: SourceKind) => (src !== 'spotify' || SPOTIFY_ENABLED) && (filter === 'all' || filter === src);
+  const show = (src: SourceKind) => filter === 'all' || filter === src;
   const local = useMemo(() => albums.filter((a) => a.source === 'local' && matches(a, query)), [albums, query]);
   const demo = useMemo(() => albums.filter((a) => a.source === 'demo' && matches(a, query)), [albums, query]);
-  const saved = useMemo(() => spotifyAlbums.filter((a) => matches(a, query)), [spotifyAlbums, query]);
-  const nothing = (show('local') ? local.length : 0) + (show('demo') ? demo.length : 0) + (show('spotify') ? saved.length + spotifyResults.length : 0) === 0;
+  const nothing = (show('local') ? local.length : 0) + (show('demo') ? demo.length : 0) === 0;
 
   const onFiles = (list: FileList | null) => {
     if (list?.length) void importLocal(Array.from(list));
@@ -93,23 +87,22 @@ export function Shelf() {
           <h2 id="library" tabIndex={-1} className="font-display text-xl font-light tracking-tight">
             My CD shelf
           </h2>
-          <span className="text-xs text-muted">{albums.length + spotifyAlbums.length} disc{albums.length + spotifyAlbums.length === 1 ? '' : 's'}</span>
+          <span className="text-xs text-muted">{albums.length} disc{albums.length === 1 ? '' : 's'}</span>
         </div>
         <form
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
-            if (spotify.status === 'connected' && query.trim()) void searchSpotify(query);
           }}
         >
           <label className="relative block">
-            <span className="sr-only">Search albums{spotify.status === 'connected' ? ' (press Enter to search Spotify)' : ''}</span>
+            <span className="sr-only">Search albums</span>
             <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={spotify.status === 'connected' ? 'Search shelf · Enter for Spotify' : 'Search your shelf'}
+              placeholder="Search your shelf"
               className="h-10 w-full rounded-full border border-line bg-surface pl-9 pr-4 text-sm text-ink placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             />
           </label>
@@ -132,27 +125,6 @@ export function Shelf() {
       <div className="min-h-0 flex-1 overflow-y-auto px-2 sm:px-3">
         {show('demo') && <Grid albums={demo} label="Demo disc · synthesized sample audio" />}
         {show('local') && <Grid albums={local} label="Local albums" />}
-        {show('spotify') && spotify.status === 'connected' && (
-          <>
-            {spotify.searching && <p className="px-2 pb-3 text-xs text-muted">Searching Spotify…</p>}
-            <Grid albums={spotifyResults} label="Spotify search" />
-            <Grid albums={saved} label="Saved on Spotify" />
-          </>
-        )}
-        {show('spotify') && spotify.status !== 'connected' && filter === 'spotify' && (
-          <div className="mx-2 mb-6 rounded-2xl border border-dashed border-line p-4 text-sm text-muted">
-            {spotify.status === 'unconfigured' ? (
-              <p>Spotify isn’t configured for this deployment. Add a client ID in <code className="font-mono text-xs">.env</code> to browse your Spotify library here.</p>
-            ) : (
-              <p>
-                <button type="button" className="font-medium text-accent-ink underline underline-offset-2" onClick={() => void loginSpotify()}>
-                  Connect Spotify
-                </button>{' '}
-                to turn your saved albums into virtual CDs.
-              </p>
-            )}
-          </div>
-        )}
         {nothing && query && <p className="px-3 py-6 text-center text-sm text-muted">No discs match “{query}”.</p>}
 
         <div className="mx-1 mb-6 rounded-2xl border border-dashed border-line p-4 text-center">

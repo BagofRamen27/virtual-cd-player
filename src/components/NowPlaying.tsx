@@ -79,12 +79,11 @@ function Volume() {
   );
 }
 
-function DiscCondition({ albumId, source }: { albumId: string; source: 'local' | 'spotify' | 'demo' }) {
+function DiscCondition({ albumId }: { albumId: string }) {
   const profile = usePlayer((s) => s.damage[albumId]);
   const { setCondition, cleanDisc, setUi } = usePlayer.getState();
   const condition = profile?.condition ?? 0;
   const strokes = profile?.strokes.length ?? 0;
-  const spotify = source === 'spotify';
 
   return (
     <section aria-labelledby="condition-h" className="rounded-2xl border border-line p-4">
@@ -92,7 +91,7 @@ function DiscCondition({ albumId, source }: { albumId: string; source: 'local' |
         <h3 id="condition-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
           Disc condition
         </h3>
-        {condition > 0 || strokes > 0 ? <Pill tone="accent">{spotify ? 'Visible · skips' : 'Visible · audible'}</Pill> : <Pill>Clean</Pill>}
+        {condition > 0 || strokes > 0 ? <Pill tone="accent">Visible · audible</Pill> : <Pill>Clean</Pill>}
       </div>
       <div role="radiogroup" aria-labelledby="condition-h" className="mt-3 grid grid-cols-3 gap-1.5">
         {([0, 1, 2, 3, 4, 5] as ConditionLevel[]).map((lvl) => (
@@ -109,9 +108,7 @@ function DiscCondition({ albumId, source }: { albumId: string; source: 'local' |
         ))}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted">
-        {spotify
-          ? 'Scratched Spotify discs skip and repeat using Spotify’s own seek control, at the same places every play. The audio itself is never recorded or altered.'
-          : 'Scratched discs stutter, skip and drop out at the same places every time you play them.'}
+        Scratched discs stutter, skip and drop out at the same places every time you play them.
         {strokes > 0 && ` ${strokes} hand-made scratch${strokes > 1 ? 'es' : ''}.`}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -131,7 +128,6 @@ export function NowPlaying() {
   const selected = useSelectedAlbum();
   const trackIndex = usePlayer((s) => s.trackIndex);
   const state = usePlayer((s) => s.state);
-  const spotifyNote = usePlayer((s) => s.spotify.message);
   const selectTrack = usePlayer((s) => s.selectTrack);
   const album = inserted ?? selected;
   const isInserted = !!inserted;
@@ -158,16 +154,6 @@ export function NowPlaying() {
                 {album.title}
                 {album.year ? ` · ${album.year}` : ''}
               </p>
-              {album.source === 'spotify' && album.spotifyUrl && (
-                <a
-                  href={album.spotifyUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-accent-ink underline-offset-2 hover:underline"
-                >
-                  Open in Spotify <Icon name="external" size={12} />
-                </a>
-              )}
             </div>
           </div>
 
@@ -178,11 +164,6 @@ export function NowPlaying() {
             </div>
           )}
 
-          {album.source === 'spotify' && (
-            <p className="mt-4 text-[11px] leading-relaxed text-muted">
-              Metadata and artwork provided by Spotify. {spotifyNote}
-            </p>
-          )}
           {album.source === 'demo' && (
             <p className="mt-4 text-[11px] leading-relaxed text-muted">Demo disc: original ambient sketches synthesized in your browser.</p>
           )}
@@ -216,7 +197,7 @@ export function NowPlaying() {
           </section>
 
           <div className="mt-6">
-            <DiscCondition albumId={album.id} source={album.source} />
+            <DiscCondition albumId={album.id} />
           </div>
         </>
       )}

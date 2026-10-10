@@ -3,7 +3,7 @@ import { usePlayer } from '../state/store';
 
 export const DRAG_TYPE = 'application/x-discdeck-album';
 
-const SOURCE_LABEL = { local: 'Local', spotify: 'Spotify', demo: 'Demo' } as const;
+const SOURCE_LABEL = { local: 'Local', demo: 'Demo' } as const;
 
 interface Props {
   album: Album;
