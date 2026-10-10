@@ -140,21 +140,23 @@ const TARGET = new THREE.Vector3(0, 0.6, -0.15);
 const VIEW_DIR = new THREE.Vector3(0, 0.3, 1).normalize();
 
 /** Frame the whole system (speaker to speaker) for any canvas aspect, on mount and on resize. */
-export type RoomView = 'room' | 'amp' | 'source';
+export type RoomView = 'room' | 'amp' | 'knobs' | 'source';
 
 function FitCamera({ view, sourceId }: { view: RoomView; sourceId: string }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
   useEffect(() => {
-    const target = view === 'amp' ? POS.amp.clone().add(new THREE.Vector3(0, 0.28, 0.4))
-      : view === 'source' ? (sourceId === 'boombox-2003' ? POS.boombox : POS.dd1).clone().add(new THREE.Vector3(0, 0.3, 0)) : TARGET;
-    const halfWidth = view === 'room' ? 3.95 : view === 'amp' ? 1.4 : 1.25;
-    const halfHeight = view === 'room' ? 1.7 : view === 'amp' ? 0.6 : 0.8;
+    const amplifier = view === 'amp' || view === 'knobs';
+    // Frame the front controls, rather than measuring distance from inside the chassis.
+    const target = amplifier ? POS.amp.clone().add(new THREE.Vector3(view === 'knobs' ? 0.35 : 0, 0.36, 0.85))
+      : view === 'source' ? (sourceId === 'boombox-2003' ? POS.boombox : POS.dd1).clone().add(new THREE.Vector3(0, 0.3, sourceId === 'dd1' || sourceId === 'philips-cd100' ? 0 : 0.8)) : TARGET;
+    const halfWidth = view === 'room' ? 3.95 : view === 'knobs' ? 0.76 : view === 'amp' ? 1.28 : 1.25;
+    const halfHeight = view === 'room' ? 1.7 : view === 'knobs' ? 0.38 : view === 'amp' ? 0.5 : 0.7;
     const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const aspect = size.width / Math.max(1, size.height);
-    const dist = Math.max(halfWidth / (tanV * aspect), halfHeight / tanV) + 0.9;
-    const direction = view === 'source' && (sourceId === 'dd1' || sourceId === 'philips-cd100') ? new THREE.Vector3(0, 0.85, 1).normalize() : view === 'amp' ? new THREE.Vector3(0, 0.16, 1).normalize() : VIEW_DIR;
-    camera.position.copy(target).addScaledVector(direction, Math.max(view === 'room' ? 6 : 3, dist));
+    const dist = Math.max(halfWidth / (tanV * aspect), halfHeight / tanV) + (view === 'room' ? 0.9 : 0.08);
+    const direction = view === 'source' && (sourceId === 'dd1' || sourceId === 'philips-cd100') ? new THREE.Vector3(0, 0.85, 1).normalize() : amplifier ? new THREE.Vector3(0, 0.035, 1).normalize() : VIEW_DIR;
+    camera.position.copy(target).addScaledVector(direction, Math.max(view === 'room' ? 6 : 0.8, dist));
     camera.lookAt(target);
   }, [camera, size.width, size.height, view, sourceId]);
   return null;

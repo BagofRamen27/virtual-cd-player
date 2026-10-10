@@ -102,7 +102,7 @@ export function RackView() {
   const setEnabled = useHifi((s) => s.setEnabled);
   const desktop = useMediaQuery('(min-width: 1024px)');
   const [tab, setTab] = useState<'room' | 'wiring' | 'controls'>('room');
-  const [view, setView] = useState<RoomView>('room');
+  const [view, setView] = useState<RoomView>('knobs');
   const hasAmp = !!useHifi((s) => s.rackIds.amp);
   const show3D = webgl && !force2D;
 
@@ -145,15 +145,15 @@ export function RackView() {
           <Boundary fallback={<div className="p-6"><WiringPanel /></div>}>
             <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted">Setting up the room…</div>}>
               <div className="absolute inset-0">
-                <RackScene view={view === 'amp' && !hasAmp ? 'room' : view} />
+                <RackScene view={(view === 'amp' || view === 'knobs') && !hasAmp ? 'source' : view} />
               </div>
             </Suspense>
             <div className="absolute bottom-3 inset-x-3 flex flex-wrap items-center gap-2">
               <div role="group" aria-label="Camera view" className="flex gap-1 rounded-2xl border border-line bg-surface/90 p-1 shadow-sm">
-                {(['room', 'amp', 'source'] as const).map((v) => (
-                  <button key={v} type="button" aria-pressed={view === v} disabled={v === 'amp' && !hasAmp} onClick={() => setView(v)}
+                {(['room', 'amp', 'knobs', 'source'] as const).map((v) => (
+                  <button key={v} type="button" aria-pressed={view === v} disabled={(v === 'amp' || v === 'knobs') && !hasAmp} onClick={() => setView(v)}
                     className={`min-h-11 rounded-xl px-3 text-xs font-medium disabled:opacity-40 ${view === v ? 'bg-ink text-bg' : 'text-ink-soft hover:bg-surface-2'}`}>
-                    {v === 'room' ? 'Whole room' : v === 'amp' ? 'Amplifier' : 'CD player'}
+                    {v === 'room' ? 'Whole room' : v === 'amp' ? 'Amplifier' : v === 'knobs' ? 'Knobs' : 'CD player'}
                   </button>
                 ))}
               </div>
