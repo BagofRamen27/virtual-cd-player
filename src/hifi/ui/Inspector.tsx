@@ -224,7 +224,7 @@ export function Inspector() {
             <Toggle label="Loudness" on={ampState.loudness} onChange={(v) => set({ loudness: v })} hint="Lifts bass and treble more at low volume" />
             <Toggle label="Speakers A" on={ampState.speakersA} onChange={(v) => set({ speakersA: v })} />
           </div>
-          <VUMeters />
+          <VUMeters unavailable={spotify} />
           <div role="radiogroup" aria-label="Input selector" className="flex gap-1.5">
             {amp.inputs.map((i) => (
               <button

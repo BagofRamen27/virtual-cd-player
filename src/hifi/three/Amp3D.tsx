@@ -4,7 +4,8 @@ import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { easing } from 'maath';
 import { currentAmpState, rackOf, useHifi } from '../store';
-import { readMeters, toDb } from '../meters';
+import { readMeters } from '../meters';
+import { useInsertedAlbum } from '../../state/store';
 import { defaultAmpState } from '../catalog';
 import { Knob3D, PanelButton } from './Knob3D';
 import { brushedBump, brushedRoughness, plasticBump, ventSlots, woodColor, woodRoughness } from './materials';
@@ -118,7 +119,7 @@ function vuTexture(label: string): THREE.CanvasTexture {
   });
   g.fillStyle = '#3b2a1c';
   g.font = '700 26px Inter, sans-serif';
-  g.fillText(`VU  ${label}`, cx, 220);
+  g.fillText(`VU AUTO  ${label}`, cx, 220);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -131,16 +132,15 @@ function vuAngle(db: number): number {
 }
 
 function VuMeter({ position, channel, on }: { position: readonly [number, number]; channel: 'L' | 'R'; on: boolean }) {
+  const unavailable = useInsertedAlbum()?.source === 'spotify';
   const needle = useRef<THREE.Group>(null);
-  const tex = useMemo(() => vuTexture(channel), [channel]);
+  const tex = useMemo(() => vuTexture(unavailable ? 'UNAVAILABLE' : channel), [channel, unavailable]);
   useEffect(() => () => tex.dispose(), [tex]);
   useFrame((_, dt) => {
     if (!needle.current) return;
     const m = readMeters();
-    const rms = channel === 'L' ? m.outRmsL : m.outRmsR;
-    // Calibrated RMS, 0 VU = -18 dBFS. Extended scale shows quiet playback too.
-    const db = on ? toDb(rms) + 18 : -60;
-    easing.dampAngle(needle.current.rotation, 'z', -vuAngle(db), 0.15, dt);
+    const db = on && !unavailable ? (channel === 'L' ? m.vuL : m.vuR) : -60;
+    easing.dampAngle(needle.current.rotation, 'z', -vuAngle(db), 0.025, dt);
   });
   const w = 0.36;
   const h = 0.18;
