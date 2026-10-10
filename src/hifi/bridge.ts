@@ -13,7 +13,8 @@ export function currentDspParams(): DspParams {
   const h = useHifi.getState();
   const p = usePlayer.getState();
   const rack = rackOf(h.rackIds);
-  const route = currentRoute(h);
+  // The rack only shapes the sound inside the Hi-Fi Room; the Player page always plays directly.
+  const route = currentRoute({ ...h, enabled: h.enabled && h.view === 'room' });
   const sourceVolume = rack.source && rack.source.id !== 'dd1' ? (h.sourceVolumes[rack.source.id] ?? 0.6) : p.settings.volume;
   return computeDspParams({
     route,

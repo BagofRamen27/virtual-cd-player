@@ -44,7 +44,7 @@ export const PRESETS: HifiPreset[] = [
       [{ slot: 'source', port: 'line-out' }, { slot: 'amp', port: 'in-cd' }],
       [{ slot: 'amp', port: 'spk-a' }, { slot: 'speakers', port: 'terminals' }],
     ],
-    amp: { power: true, input: 'CD' },
+    amp: { power: true, input: 'CD', volume: 0.65, speakersA: true },
   },
   {
     id: 'bedroom-boombox',
@@ -152,8 +152,14 @@ export const useHifi = create<HifiState>()(
 
         setView(view) {
           set({ view });
-          // Opening the listening room switches playback over to the rack.
-          if (view === 'room' && !get().enabled) set({ enabled: true });
+          if (view !== 'room') return;
+          // Inside the Hi-Fi Room, playback goes through the rack.
+          if (!get().enabled) set({ enabled: true });
+          // Never greet someone with silence: an empty rack starts pre-wired and switched on.
+          if (get().connections.length === 0 && !rackOf(get().rackIds).source?.builtInSpeakerProfileId) {
+            get().applyPreset('living-room');
+            get().say('The room is pre-wired (CD player → amp → speakers) so you hear it straight away. Unplug cables in Wiring to build your own.');
+          }
         },
         setEnabled(enabled) {
           set({ enabled });

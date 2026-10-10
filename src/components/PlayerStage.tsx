@@ -6,7 +6,6 @@ import { DRAG_TYPE } from './JewelCase';
 import { Player2D } from './Player2D';
 import { TransportControls } from './TransportControls';
 import { Icon } from './ui';
-import { currentRoute, useHifi } from '../hifi/store';
 
 const Stage = lazy(() => import('../three/Stage'));
 
@@ -33,28 +32,6 @@ function Hint() {
   else if (state === 'READY') text = 'Press play.';
   if (!text) return null;
   return <p className="pointer-events-none hidden text-center text-[13px] text-muted sm:block">{text}</p>;
-}
-
-function RackBanner() {
-  const h = useHifi();
-  const route = currentRoute(h);
-  if (!h.enabled) return null;
-  const out = route.output;
-  return (
-    <div className="absolute left-3 top-3 z-10 max-w-[min(420px,calc(100%-9rem))] rounded-2xl border border-line bg-surface/90 px-3 py-2 text-[11px] shadow-sm backdrop-blur">
-      <p className={out.kind === 'silent' ? 'text-ink' : 'text-ink-soft'}>
-        {out.kind === 'silent' ? <>Hi-Fi rack is silent: {out.reason}</> : out.kind === 'direct' ? 'Direct output' : <>Playing through the Hi-Fi rack → {out.deviceName}</>}
-      </p>
-      <div className="mt-1 flex gap-3">
-        <button type="button" className="font-medium text-accent-ink underline-offset-2 hover:underline" onClick={() => h.setView('room')}>
-          Open Hi-Fi Room
-        </button>
-        <button type="button" className="text-muted underline-offset-2 hover:underline" onClick={() => h.setEnabled(false)}>
-          Play directly instead
-        </button>
-      </div>
-    </div>
-  );
 }
 
 export function PlayerStage() {
@@ -124,7 +101,6 @@ export function PlayerStage() {
           )}
         </div>
 
-        <RackBanner />
         {state === 'ERROR' && errorMessage && (
           <div role="alert" className="absolute inset-x-4 top-3 mx-auto max-w-md rounded-2xl border border-line bg-surface/95 p-4 text-sm shadow-lg sm:top-4">
             <p className="font-medium text-ink">This disc can’t be played</p>
