@@ -41,6 +41,11 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 export const store = {
   loadAlbums: () => safe(async () => (await db()).getAll('albums'), [] as Album[]),
   saveAlbum: (album: Album) => safe(async () => void (await db()).put('albums', album), undefined),
+  /** Edits must report persistence failures instead of silently appearing to save. */
+  async updateAlbum(album: Album): Promise<void> {
+    try { await (await db()).put('albums', album); }
+    catch { throw new Error('Could not save this CD. Browser storage may be full or unavailable.'); }
+  },
   deleteAlbum: (album: Album) =>
     safe(async () => {
       const d = await db();

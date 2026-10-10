@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { CoverUpload } from './CoverUpload';
+import { TrackMarkers } from './TrackMarkers';
+import { buildCueSheet } from '../lib/trackMarkers';
 import { Button, Dialog, Icon } from './ui';
 import { isAudioFile, probeDuration } from '../lib/importAudio';
 import { readTags } from '../lib/id3';
@@ -10,7 +12,7 @@ import { requestPersistence, store } from '../db/idb';
 import { usePlayer } from '../state/store';
 import type { Album } from '../types';
 
-interface BurnTrack { id: string; file: File; title: string; artist: string; duration: number }
+interface BurnTrack { id: string; file: File; title: string; artist: string; duration: number; startOffset?: number }
 const time = (seconds: number) => `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}`;
 
 export function BurnCD() {
@@ -19,6 +21,7 @@ export function BurnCD() {
   const [tracks, setTracks] = useState<BurnTrack[]>([]), [busy, setBusy] = useState('');
   const [message, setMessage] = useState(''), [burned, setBurned] = useState<Album | null>(null);
   const [cover, setCover] = useState<string>();
+  const [splitId, setSplitId] = useState<string | null>(null);
   const preview = useMemo(() => cover || generateCover(title.trim() || 'My mixtape', artist.trim(), tintFor(title + artist)), [cover, title, artist]);
   const input = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null);
   const duration = discSeconds(tracks.map(t => t.duration));
@@ -51,10 +54,15 @@ export function BurnCD() {
       coverUrl: preview, tracks: [], addedAt: Date.now() };
     try {
       await requestPersistence();
+      const files = new Map<File, string>();
       for (const track of tracks) {
         const key = `${id}/${track.id}`;
-        album.tracks.push({ id: key, fileKey: key, title: track.title, artist: track.artist, duration: track.duration });
-        if (!await store.saveAudio(key, track.file)) album.sessionOnly = true;
+        const fileKey = files.get(track.file) || key;
+        album.tracks.push({ id: key, fileKey, title: track.title, artist: track.artist, duration: track.duration, startOffset: track.startOffset });
+        if (!files.has(track.file)) {
+          if (!await store.saveAudio(fileKey, track.file)) album.sessionOnly = true;
+          files.set(track.file, fileKey);
+        }
       }
       await store.saveAlbum(album);
       usePlayer.setState(state => ({ albums: [...state.albums, album], selectedAlbumId: id }));
@@ -70,13 +78,17 @@ export function BurnCD() {
     setBusy('Preparing album ZIP…');
     try {
       const root = safeName(burned.title);
-      const names = tracks.map((t, i) => `${String(i + 1).padStart(2, '0')} - ${safeName(t.file.name)}`);
+      const files = [...new Set(tracks.map(t => t.file))];
+      const fileNames = files.map((file, i) => `${String(i + 1).padStart(2, '0')} - ${safeName(file.name)}`);
+      const names = tracks.map(t => fileNames[files.indexOf(t.file)]);
+      const segmented = tracks.some(t => t.startOffset !== undefined);
+      const cue = buildCueSheet(tracks.map((t, i) => ({ file: names[i], title: t.title, artist: t.artist, start: t.startOffset || 0 })));
       const playlist = '#EXTM3U\n' + tracks.map((t, i) => `#EXTINF:${Math.round(t.duration)},${t.artist.replace(/[\r\n]/g, ' ')} - ${t.title.replace(/[\r\n]/g, ' ')}\n${names[i]}`).join('\n') + '\n';
       const zip = await discZip([
-        ...tracks.map((t, i) => ({ name: `${root}/${names[i]}`, data: t.file })),
+        ...files.map((file, i) => ({ name: `${root}/${fileNames[i]}`, data: file })),
         ...(burned.coverUrl?.startsWith('data:image/jpeg') ? [{ name: `${root}/cover.jpg`, data: await (await fetch(burned.coverUrl)).blob() }] : []),
-        { name: `${root}/playlist.m3u8`, data: new Blob([playlist]) },
-        { name: `${root}/disc.json`, data: new Blob([JSON.stringify({ title: burned.title, artist: burned.artist, cover: 'cover.jpg', tracks: tracks.map((t, i) => ({ file: names[i], title: t.title, artist: t.artist, duration: t.duration })) }, null, 2)]) },
+        ...(segmented ? [...(cue ? [{ name: `${root}/album.cue`, data: new Blob([cue]) }] : []), { name: `${root}/README.txt`, data: new Blob(['Original audio files are preserved once each. Song boundaries and playback order are in disc.json. When the file format and song order support it, album.cue is included for CUE-capable players. A normal MP3 player will play the whole original file.\n']) }] : [{ name: `${root}/playlist.m3u8`, data: new Blob([playlist]) }]),
+        { name: `${root}/disc.json`, data: new Blob([JSON.stringify({ title: burned.title, artist: burned.artist, cover: 'cover.jpg', tracks: tracks.map((t, i) => ({ file: names[i], title: t.title, artist: t.artist, duration: t.duration, startOffset: t.startOffset })) }, null, 2)]) },
       ]);
       const url = URL.createObjectURL(zip), link = document.createElement('a');
       link.href = url; link.download = `${root}.zip`; link.click();
@@ -93,7 +105,7 @@ export function BurnCD() {
         <CoverUpload value={burned?.coverUrl || preview} disabled={!!busy} onBusyChange={active => setBusy(active ? 'Preparing album cover…' : '')} onChange={async image => {
           if (burned) {
             const updated = { ...burned, coverUrl: image };
-            await store.saveAlbum(updated);
+            await store.updateAlbum(updated);
             usePlayer.setState(state => ({ albums: state.albums.map(album => album.id === updated.id ? updated : album) }));
             setBurned(updated);
           }
@@ -113,12 +125,16 @@ export function BurnCD() {
         </div>
         <input ref={input} type="file" multiple accept="audio/*,.flac,.mp3,.wav,.m4a,.ogg,.opus" hidden onChange={e => { void addFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
         <input ref={folder} type="file" multiple hidden {...({ webkitdirectory: '' } as Record<string, string>)} onChange={e => { void addFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
-        <ol className="space-y-2" aria-label="CD track order">{tracks.map((t, i) => <li key={t.id} className="flex items-center gap-2 rounded-xl border border-line p-2">
+        <ol className="space-y-2" aria-label="CD track order">{tracks.map((t, i) => <li key={t.id} className="rounded-xl border border-line p-2"><div className="flex flex-wrap items-center gap-2">
           <span className="w-6 text-xs text-muted">{i + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-sm">{t.title}</p><p className="truncate text-xs text-muted">{t.artist} · {time(t.duration)}</p></div>
           <Button size="sm" disabled={!!busy || i === 0} aria-label={`Move ${t.title} up`} onClick={() => move(i, -1)}>↑</Button>
           <Button size="sm" disabled={!!busy || i === tracks.length - 1} aria-label={`Move ${t.title} down`} onClick={() => move(i, 1)}>↓</Button>
+          {t.startOffset === undefined && <Button size="sm" disabled={!!busy} onClick={() => setSplitId(splitId === t.id ? null : t.id)}>Split into songs</Button>}
           <Button size="sm" disabled={!!busy} aria-label={`Remove ${t.title}`} onClick={() => setTracks(previous => previous.filter(x => x.id !== t.id))}>×</Button>
-        </li>)}</ol>
+        </div>{splitId === t.id && <TrackMarkers duration={t.duration} disabled={!!busy} onApply={markers => {
+          setTracks(previous => previous.flatMap(track => track.id === t.id ? markers.map(marker => ({ ...track, id: crypto.randomUUID(), title: marker.title, duration: marker.duration, startOffset: marker.start })) : [track]));
+          setSplitId(null); setMessage('Songs added. Next and Previous will jump between these tracks.');
+        }} />}</li>)}</ol>
         <p className="my-3 text-sm">{tracks.length} tracks · {time(duration)} / {minutes}:00</p>
         <progress className="w-full accent-accent" max={minutes * 60} value={duration} aria-label="Disc capacity used" />
         <p className="mb-4 text-xs text-muted">Capacity reserves two seconds between tracks. Playback uses the player’s normal track transitions.</p>

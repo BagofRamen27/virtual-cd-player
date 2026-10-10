@@ -8,6 +8,8 @@ export interface Track {
   duration: number;
   /** Key of the stored audio blob in IndexedDB (local source only). */
   fileKey?: string;
+  /** Song start within a shared whole-album file; duration is the segment length. */
+  startOffset?: number;
 }
 
 export interface Album {

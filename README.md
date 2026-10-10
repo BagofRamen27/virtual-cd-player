@@ -6,6 +6,10 @@ Built with React, TypeScript, Vite, Tailwind CSS, React Three Fiber, Three.js an
 
 ## Quick start
 
+Whole-album MP3 files can become skippable discs: in **Burn CD**, add the file and choose **Split into songs**, then enter one timestamp and song name per line (for example `0:00 Opening` and `3:42 Second song`). Existing single-file CDs can be edited using **Split whole album into songs** beneath the selected CD on the shelf; eject the disc first. Next, Previous, track selection, automatic advancement, seeking, hi-fi processing, and VU meters operate on the individual songs. The original file is stored once. Album ZIP backups preserve it with the song boundaries in `disc.json`, plus a CUE sheet when the format and order support it.
+
+To add artwork to an existing local CD, select it on the shelf and use **Upload album cover** beneath its details. The image is saved in this browser and appears on the case and player. Covers can be replaced without burning the disc again.
+
 ```bash
 npm install
 npm run dev
