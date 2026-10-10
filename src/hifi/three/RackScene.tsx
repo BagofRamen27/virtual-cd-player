@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { ContactShadows, OrbitControls } from '@react-three/drei';
+import { ContactShadows } from '@react-three/drei';
 import { Bloom, EffectComposer, N8AO, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { usePlayer } from '../../state/store';
@@ -134,21 +134,23 @@ const TARGET = new THREE.Vector3(0, 0.6, -0.15);
 const VIEW_DIR = new THREE.Vector3(0, 0.3, 1).normalize();
 
 /** Frame the whole system (speaker to speaker) for any canvas aspect, on mount and on resize. */
-function FitCamera() {
+export type RoomView = 'room' | 'amp' | 'source';
+
+function FitCamera({ view, sourceId }: { view: RoomView; sourceId: string }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
-  const controls = useThree((s) => s.controls) as unknown as { update?: () => void; saveState?: () => void } | null;
   useEffect(() => {
-    const halfWidth = 3.95;
-    const halfHeight = 1.7;
+    const target = view === 'amp' ? POS.amp.clone().add(new THREE.Vector3(0, 0.28, 0.4))
+      : view === 'source' ? (sourceId === 'boombox-2003' ? POS.boombox : POS.dd1).clone().add(new THREE.Vector3(0, 0.3, 0)) : TARGET;
+    const halfWidth = view === 'room' ? 3.95 : view === 'amp' ? 1.4 : 1.25;
+    const halfHeight = view === 'room' ? 1.7 : 0.85;
     const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const aspect = size.width / Math.max(1, size.height);
     const dist = Math.max(halfWidth / (tanV * aspect), halfHeight / tanV) + 0.9;
-    camera.position.copy(TARGET).addScaledVector(VIEW_DIR, Math.min(16, Math.max(6, dist)));
-    camera.lookAt(TARGET);
-    controls?.update?.();
-    controls?.saveState?.();
-  }, [camera, size.width, size.height, controls]);
+    const direction = view === 'source' && sourceId !== 'boombox-2003' ? new THREE.Vector3(0, 0.85, 1).normalize() : VIEW_DIR;
+    camera.position.copy(target).addScaledVector(direction, Math.max(view === 'room' ? 6 : 3, dist));
+    camera.lookAt(target);
+  }, [camera, size.width, size.height, view, sourceId]);
   return null;
 }
 
@@ -167,7 +169,7 @@ function DevProbe() {
   return null;
 }
 
-export default function RackScene() {
+export default function RackScene({ view = 'room' }: { view?: RoomView }) {
   const h = useHifi();
   const theme = usePlayer((s) => s.settings.theme);
   const quality = usePlayer((s) => s.settings.quality);
@@ -247,7 +249,7 @@ export default function RackScene() {
         <Cable key={c.id} c={c} sourceId={h.rackIds.source} speakersId={h.rackIds.speakers} />
       ))}
 
-      <FitCamera />
+      <FitCamera view={view} sourceId={h.rackIds.source} />
       {import.meta.env.DEV && <DevProbe />}
       <ContactShadows position={[0, 0.002, 0]} opacity={dark ? 0.6 : 0.4} scale={14} blur={2.4} far={3} resolution={high ? 512 : 256} frames={high ? Infinity : 1} color="#251F1B" />
       {high && (
@@ -257,19 +259,6 @@ export default function RackScene() {
           <Vignette offset={0.32} darkness={dark ? 0.55 : 0.38} />
         </EffectComposer>
       )}
-      <OrbitControls
-        makeDefault
-        target={TARGET.toArray() as [number, number, number]}
-        enablePan={false}
-        enableDamping
-        dampingFactor={0.08}
-        minDistance={3}
-        maxDistance={14}
-        minPolarAngle={0.3}
-        maxPolarAngle={1.5}
-        minAzimuthAngle={-1.1}
-        maxAzimuthAngle={1.1}
-      />
     </Canvas>
   );
 }

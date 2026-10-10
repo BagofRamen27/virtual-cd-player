@@ -10,6 +10,7 @@ import { PRESETS } from '../store';
 import { Inspector } from './Inspector';
 import { Tutorial } from './Tutorial';
 import { WiringPanel } from './WiringPanel';
+import type { RoomView } from '../three/RackScene';
 
 const RackScene = lazy(() => import('../three/RackScene'));
 
@@ -100,15 +101,17 @@ export function RackView() {
   const enabled = useHifi((s) => s.enabled);
   const setEnabled = useHifi((s) => s.setEnabled);
   const desktop = useMediaQuery('(min-width: 1024px)');
-  const [tab, setTab] = useState<'room' | 'wiring'>('room');
+  const [tab, setTab] = useState<'room' | 'wiring' | 'controls'>('room');
+  const [view, setView] = useState<RoomView>('room');
+  const hasAmp = !!useHifi((s) => s.rackIds.amp);
   const show3D = webgl && !force2D;
 
   const centre = (
     <div className="relative flex h-full min-h-0 flex-col" style={{ background: 'var(--stage)' }}>
-      {/* Floating controls over a full-bleed scene */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
+      {/* Keep navigation outside the scene so it never covers equipment controls. */}
+      <div className="relative z-10 flex shrink-0 flex-wrap items-start justify-between gap-3 p-3">
         <div role="tablist" aria-label="Room view" className="pointer-events-auto flex gap-1 rounded-full border border-line bg-surface/75 p-1 shadow-[0_8px_24px_-12px_rgba(37,31,27,0.45)] backdrop-blur-md">
-          {(['room', 'wiring'] as const).map((t) => (
+          {(['room', 'wiring', 'controls'] as const).map((t) => (
             <button
               key={t}
               role="tab"
@@ -122,12 +125,12 @@ export function RackView() {
                   <span className="sm:hidden">Room</span>
                   <span className="hidden sm:inline">Listening room</span>
                 </>
-              ) : (
+              ) : t === 'wiring' ? (
                 <>
                   <span className="sm:hidden">Wiring</span>
                   <span className="hidden sm:inline">Wiring · back panels</span>
                 </>
-              )}
+              ) : 'Controls'}
             </button>
           ))}
         </div>
@@ -139,19 +142,27 @@ export function RackView() {
       </div>
       <div className="relative min-h-0 flex-1">
         {tab === 'room' && show3D ? (
-          <Boundary fallback={<div className="p-6 pt-16"><WiringPanel /></div>}>
+          <Boundary fallback={<div className="p-6"><WiringPanel /></div>}>
             <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted">Setting up the room…</div>}>
               <div className="absolute inset-0">
-                <RackScene />
+                <RackScene view={view === 'amp' && !hasAmp ? 'room' : view} />
               </div>
             </Suspense>
-            <p className="pointer-events-none absolute bottom-3 left-3 hidden rounded-full sm:block bg-surface/60 px-3 py-1 text-[11px] text-ink-soft backdrop-blur-md">
-              Drag knobs to turn · scroll to nudge · double-click to reset · drag the room to look around
-            </p>
+            <div className="absolute bottom-3 inset-x-3 flex flex-wrap items-center gap-2">
+              <div role="group" aria-label="Camera view" className="flex gap-1 rounded-2xl border border-line bg-surface/90 p-1 shadow-sm">
+                {(['room', 'amp', 'source'] as const).map((v) => (
+                  <button key={v} type="button" aria-pressed={view === v} disabled={v === 'amp' && !hasAmp} onClick={() => setView(v)}
+                    className={`min-h-11 rounded-xl px-3 text-xs font-medium disabled:opacity-40 ${view === v ? 'bg-ink text-bg' : 'text-ink-soft hover:bg-surface-2'}`}>
+                    {v === 'room' ? 'Whole room' : v === 'amp' ? 'Amplifier' : 'CD player'}
+                  </button>
+                ))}
+              </div>
+              <p className="pointer-events-none hidden rounded-full bg-surface/80 px-3 py-1 text-[11px] text-ink-soft xl:block">Camera stays still · drag knobs to adjust</p>
+            </div>
           </Boundary>
         ) : (
-          <div className="h-full overflow-y-auto p-4 pt-16">
-            <WiringPanel />
+          <div className="h-full overflow-y-auto p-4">
+            {tab === 'controls' ? <Inspector /> : <WiringPanel />}
             {!show3D && tab === 'room' && <p className="mt-3 text-xs text-muted">3D unavailable — using the 2D back-panel view.</p>}
           </div>
         )}
@@ -163,12 +174,12 @@ export function RackView() {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="h-[46vh] shrink-0">{centre}</div>
+          <div className={`${tab === 'controls' ? 'h-[65vh]' : 'h-[46vh]'} shrink-0`}>{centre}</div>
           <PresetStrip />
           <div className="space-y-4 px-4 pt-2">
             <Tutorial />
           </div>
-          <Inspector />
+          {tab !== 'controls' && <Inspector />}
           <Catalog />
         </div>
         <MiniTransport />
@@ -187,7 +198,7 @@ export function RackView() {
           <div className="px-5 pt-5">
             <Tutorial />
           </div>
-          <Inspector />
+          {tab !== 'controls' && <Inspector />}
         </aside>
       </div>
       <MiniTransport />

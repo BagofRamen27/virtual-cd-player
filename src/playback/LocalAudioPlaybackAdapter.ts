@@ -27,7 +27,11 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
         this.position = Math.min(m.seconds, this.duration);
         this.emitStatus();
       } else if (m.type === 'ended') {
-        void this.onTrackEnded();
+        void this.onTrackEnded().catch((err: unknown) => {
+          this.playing = false;
+          this.emitStatus();
+          this.events.emit({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+        });
       } else if (m.type === 'glitch') {
         this.events.emit({ type: 'glitch', kind: m.kind });
       }

@@ -47,6 +47,12 @@ class ScratchProcessor extends AudioWorkletProcessor {
         this.running = false;
         this.wantPlay = false;
         this.pendingJump = null;
+        this.glitch = 1;
+        this.muteKind = null;
+        this.afterJump = 0;
+        this.loopStart = 0;
+        this.loopEnd = 0;
+        this.sinceReport = 0;
         this.loopsLeft = 0;
         this.muteUntil = -1;
         this.next = this.lowerBound(0);
@@ -72,6 +78,7 @@ class ScratchProcessor extends AudioWorkletProcessor {
         if (this.running && this.env > 0) {
           this.pendingJump = { frame, reset: true };
         } else {
+          this.pendingJump = null;
           this.pos = frame;
           this.next = this.lowerBound(frame);
         }
