@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { readMeters } from '../meters';
+import { tabAudioMeter } from '../TabAudioMeter';
 
 export function VUMeters({ unavailable = false }: { unavailable?: boolean }) {
+  const capture = useSyncExternalStore(tabAudioMeter.subscribe, tabAudioMeter.getSnapshot);
+  const missing = unavailable && capture.state !== 'active';
   const [levels, setLevels] = useState([-60, -60]);
   const [reference, setReference] = useState(-42);
   useEffect(() => {
@@ -10,14 +13,14 @@ export function VUMeters({ unavailable = false }: { unavailable?: boolean }) {
       if (now - last >= 40) {
         last = now;
         const signal = readMeters();
-        setLevels(unavailable ? [-60, -60] : [signal.vuL, signal.vuR]);
+        setLevels(missing ? [-60, -60] : [signal.vuL, signal.vuR]);
         setReference(signal.vuReferenceDb);
       }
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
-  }, [unavailable]);
+  }, [missing]);
   return (
     <div aria-label="Live stereo VU meters" className="rounded-xl bg-[#161a1b] p-3">
       <div className="grid grid-cols-2 gap-2">
@@ -36,7 +39,7 @@ export function VUMeters({ unavailable = false }: { unavailable?: boolean }) {
           </svg>;
         })}
       </div>
-      <p className="mt-2 text-center text-[10px] text-[#b9c1bd]">{unavailable ? 'VU unavailable: Spotify does not expose audio levels.' : `Live output RMS · Auto range · 0 VU = ${reference.toFixed(0)} dBFS`}</p>
+      <p className="mt-2 text-center text-[10px] text-[#b9c1bd]">{missing ? 'Spotify VU: enable shared audio meters above.' : `${capture.state === 'active' ? 'Shared audio' : 'Live output'} RMS · Auto range · 0 VU = ${reference.toFixed(0)} dBFS`}</p>
     </div>
   );
 }

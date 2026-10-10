@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,6 +6,7 @@ import { easing } from 'maath';
 import { currentAmpState, rackOf, useHifi } from '../store';
 import { readMeters } from '../meters';
 import { useInsertedAlbum } from '../../state/store';
+import { tabAudioMeter } from '../TabAudioMeter';
 import { defaultAmpState } from '../catalog';
 import { Knob3D, PanelButton } from './Knob3D';
 import { brushedBump, brushedRoughness, plasticBump, ventSlots, woodColor, woodRoughness } from './materials';
@@ -132,14 +133,16 @@ function vuAngle(db: number): number {
 }
 
 function VuMeter({ position, channel, on }: { position: readonly [number, number]; channel: 'L' | 'R'; on: boolean }) {
-  const unavailable = useInsertedAlbum()?.source === 'spotify';
+  const capture = useSyncExternalStore(tabAudioMeter.subscribe, tabAudioMeter.getSnapshot);
+  const shared = capture.state === 'active';
+  const unavailable = useInsertedAlbum()?.source === 'spotify' && !shared;
   const needle = useRef<THREE.Group>(null);
-  const tex = useMemo(() => vuTexture(unavailable ? 'UNAVAILABLE' : channel), [channel, unavailable]);
+  const tex = useMemo(() => vuTexture(unavailable ? 'SHARE AUDIO' : shared ? `TAB ${channel}` : channel), [channel, unavailable, shared]);
   useEffect(() => () => tex.dispose(), [tex]);
   useFrame((_, dt) => {
     if (!needle.current) return;
     const m = readMeters();
-    const db = on && !unavailable ? (channel === 'L' ? m.vuL : m.vuR) : -60;
+    const db = (on || shared) && !unavailable ? (channel === 'L' ? m.vuL : m.vuR) : -60;
     easing.dampAngle(needle.current.rotation, 'z', -vuAngle(db), 0.025, dt);
   });
   const w = 0.36;
