@@ -4,16 +4,12 @@ import { computeDamageEvents, newDamageProfile } from '../audio/damage';
 import { demoAlbum } from '../audio/demoAlbum';
 import { sfx } from '../audio/sfx';
 import { store as db } from '../db/idb';
+import { clearLegacyStreamingCredentials } from '../db/legacy';
 import { importFiles } from '../lib/importAudio';
 import { LocalAudioPlaybackAdapter } from '../playback/LocalAudioPlaybackAdapter';
-import { SpotifyPlaybackAdapter } from '../playback/SpotifyPlaybackAdapter';
 import type { AdapterEvent, PlaybackAdapter } from '../playback/PlaybackAdapter';
-import * as spotifyAuth from '../spotify/auth';
-import { SPOTIFY_ENABLED } from '../spotify/config';
-import { getMe, getSavedAlbums, searchAlbums, type SpotifyUser } from '../spotify/api';
 
 export type DiscPhase = 'none' | 'inserting' | 'seated' | 'ejecting';
-export type SpotifyStatus = 'unconfigured' | 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export interface Notice {
   id: number;
@@ -55,8 +51,6 @@ interface PlayerStore {
   ready: boolean;
   settings: Settings;
   albums: Album[];
-  spotifyAlbums: Album[];
-  spotifyResults: Album[];
   selectedAlbumId: string | null;
   insertedAlbumId: string | null;
   state: PlayerState;
@@ -71,7 +65,6 @@ interface PlayerStore {
   damage: Record<string, DamageProfile>;
   lastGlitch: { kind: DamageEventType; at: number } | null;
   lastGlitchPosition: number;
-  spotify: { status: SpotifyStatus; user?: SpotifyUser; message?: string; searching?: boolean };
   importing: boolean;
   settingsOpen: boolean;
   scratchEditorAlbumId: string | null;
@@ -110,19 +103,12 @@ interface PlayerStore {
   setStrokes(albumId: string, strokes: ScratchStroke[]): void;
   cleanDisc(albumId: string): void;
 
-  connectSpotify(): Promise<void>;
-  loginSpotify(): Promise<void>;
-  logoutSpotify(): Promise<void>;
-  searchSpotify(query: string): Promise<void>;
 
   findAlbum(id: string | null): Album | undefined;
 }
 
 const localAdapter = new LocalAudioPlaybackAdapter();
-export const spotifyAdapter = new SpotifyPlaybackAdapter();
 let active: PlaybackAdapter | null = null;
-/** Which kind of adapter is currently playing — the hi-fi bridge needs to know if DSP applies. */
-export const activeAdapterKind = () => active?.kind ?? null;
 let pendingStop = false;
 let noticeId = 0;
 let initStarted = false;
@@ -185,14 +171,11 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     }
   };
   localAdapter.subscribe(onAdapter(localAdapter));
-  spotifyAdapter.subscribe(onAdapter(spotifyAdapter));
 
   return {
     ready: false,
     settings: DEFAULT_SETTINGS,
     albums: [],
-    spotifyAlbums: [],
-    spotifyResults: [],
     selectedAlbumId: null,
     insertedAlbumId: null,
     state: 'EMPTY',
@@ -207,7 +190,6 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     damage: {},
     lastGlitch: null,
     lastGlitchPosition: 0,
-    spotify: { status: spotifyAuth.spotifyConfigured() ? 'disconnected' : 'unconfigured' },
     importing: false,
     settingsOpen: false,
     scratchEditorAlbumId: null,
@@ -217,9 +199,11 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     async init() {
       if (initStarted) return;
       initStarted = true;
+      try { clearLegacyStreamingCredentials(localStorage); } catch { /* Storage unavailable. */ }
+      try { clearLegacyStreamingCredentials(sessionStorage); } catch { /* Storage unavailable. */ }
       const [settings, stored, damage] = await Promise.all([db.loadSettings(), db.loadAlbums(), db.loadDamage()]);
       // Albums whose audio could only be held in memory cannot survive a reload.
-      const usable = stored.filter((a) => !a.sessionOnly && (a.source !== 'spotify' || SPOTIFY_ENABLED));
+      const usable = stored.filter(a => !a.sessionOnly && (a.source === 'local' || a.source === 'demo'));
       for (const a of stored.filter((a) => a.sessionOnly)) void db.deleteAlbum(a);
       const demo = demoAlbum();
       set({
@@ -230,11 +214,6 @@ export const usePlayer = create<PlayerStore>((set, get) => {
         ready: true,
       });
 
-      if (spotifyAuth.spotifyConfigured()) {
-        const cb = await spotifyAuth.handleCallback();
-        if (cb.kind === 'error') get().notify(cb.message, 'error');
-        if (spotifyAuth.hasSession()) await get().connectSpotify();
-      }
     },
 
     notify(text, tone = 'info') {
@@ -266,10 +245,6 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       if (!album) return;
       if (get().insertedAlbumId === albumId && get().state !== 'EMPTY') return get().notify('That disc is already in the player.');
       if (get().state === 'LOADING' || get().state === 'EJECTING') return;
-      if (album.source === 'spotify' && !SPOTIFY_ENABLED) return get().notify('Streaming is disabled. Choose a local or demo disc.');
-      if (album.source === 'spotify' && get().spotify.status !== 'connected') {
-        return get().notify('Connect Spotify before playing Spotify discs.');
-      }
       if (get().insertedAlbumId) await get().eject();
 
       set({ powered: true });
@@ -277,7 +252,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
         get().openLid();
         await wait(LID_MS * 0.6);
       }
-      const adapter = album.source === 'spotify' ? spotifyAdapter : localAdapter;
+      const adapter = localAdapter;
       active = adapter;
       set({
         selectedAlbumId: albumId,
@@ -478,55 +453,10 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       get().notify('Disc cleaned — it plays like new.');
     },
 
-    async connectSpotify() {
-      if (!SPOTIFY_ENABLED) return;
-      set({ spotify: { status: 'connecting' } });
-      try {
-        const user = await getMe();
-        const message =
-          user.product && user.product !== 'premium'
-            ? 'Browsing only: in-browser Spotify playback requires Spotify Premium.'
-            : undefined;
-        set({ spotify: { status: 'connected', user, message } });
-        try {
-          set({ spotifyAlbums: await getSavedAlbums() });
-        } catch (err) {
-          set((s) => ({ spotify: { ...s.spotify, message: `Could not load saved albums: ${err instanceof Error ? err.message : err}` } }));
-        }
-      } catch (err) {
-        set({ spotify: { status: 'error', message: err instanceof Error ? err.message : String(err) } });
-      }
-    },
-    async loginSpotify() {
-      if (!SPOTIFY_ENABLED) return;
-      try {
-        await spotifyAuth.beginLogin();
-      } catch (err) {
-        get().notify(err instanceof Error ? err.message : String(err), 'error');
-      }
-    },
-    async logoutSpotify() {
-      const inserted = get().findAlbum(get().insertedAlbumId);
-      if (inserted?.source === 'spotify') await get().eject();
-      spotifyAuth.logout();
-      set({ spotify: { status: 'disconnected' }, spotifyAlbums: [], spotifyResults: [] });
-    },
-    async searchSpotify(query) {
-      if (get().spotify.status !== 'connected') return;
-      set((s) => ({ spotify: { ...s.spotify, searching: true } }));
-      try {
-        set({ spotifyResults: await searchAlbums(query) });
-      } catch (err) {
-        get().notify(err instanceof Error ? err.message : String(err), 'error');
-      } finally {
-        set((s) => ({ spotify: { ...s.spotify, searching: false } }));
-      }
-    },
-
     findAlbum(id) {
       if (!id) return undefined;
       const s = get();
-      return s.albums.find((a) => a.id === id) ?? s.spotifyAlbums.find((a) => a.id === id) ?? s.spotifyResults.find((a) => a.id === id);
+      return s.albums.find((a) => a.id === id);
     },
   };
 });

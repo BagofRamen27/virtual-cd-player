@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { usePlayer, activeAdapterKind } from '../../state/store';
+import { usePlayer } from '../../state/store';
 import { Icon, Pill } from '../../components/ui';
 import { currentAmpState, currentRoute, profileFor, rackOf, useHifi } from '../store';
 import { ampToneFilters, responseDb, scaleFilters } from '../dsp';
@@ -137,14 +137,12 @@ export function Inspector() {
   const h = useHifi();
   const playerVolume = usePlayer((s) => s.settings.volume);
   const setPlayerVolume = usePlayer((s) => s.setVolume);
-  const insertedSource = usePlayer((s) => s.findAlbum(s.insertedAlbumId)?.source);
   const playerState = usePlayer((s) => s.state);
   const rack = rackOf(h.rackIds);
   const amp = rack.amp;
   const ampState = currentAmpState(h);
   const route = currentRoute(h);
   const profile = profileFor(route);
-  const spotify = insertedSource === 'spotify' || activeAdapterKind() === 'spotify';
   const tone = route.throughAmp && amp && ampState ? ampToneFilters(amp, ampState) : [];
   const profFilters = profile && !h.bypass ? scaleFilters(profile.filters, h.intensity) : [];
   const srcVol = rack.source?.id === 'dd1' ? playerVolume : (h.sourceVolumes[rack.source?.id ?? ''] ?? 0.6);
@@ -171,7 +169,7 @@ export function Inspector() {
           ))}
         </div>
         <Toggle label={h.bypass ? 'Original sound' : 'System sound'} on={!h.bypass} onChange={(on) => h.setLab({ bypass: !on })} />
-        <p className="text-[11px] text-muted">{spotify ? 'Spotify: only volume changes. Play the demo above to hear the equipment effects.' : 'Equipment profiles affect demo and imported audio. Presets enable the full effect.'}</p>
+        <p className="text-[11px] text-muted">Equipment profiles affect demo and imported audio. Presets enable the full effect.</p>
       </details>
       {/* Route status */}
       <section aria-live="polite" className={`rounded-2xl border p-4 ${out.kind === 'silent' ? 'border-amber/60 bg-amber/10' : 'border-line bg-surface/70'}`}>
@@ -184,12 +182,6 @@ export function Inspector() {
           <p className="mt-1 font-medium">{out.deviceName}</p>
         )}
         {route.chain.length > 0 && out.kind !== 'direct' && <p className="mt-2 text-[11px] text-muted">{route.chain.join(' → ')}</p>}
-        {spotify && (
-          <p className="mt-3 rounded-xl bg-surface-2/70 p-2.5 text-[11px] leading-relaxed text-ink-soft">
-            <strong className="font-semibold">Spotify disc: emulation is visual-only.</strong> Spotify audio can’t be routed through this DSP and must not be altered, so only
-            volume and silence (from the route) reach it. Tone, speaker and headphone emulation apply to local and demo discs.
-          </p>
-        )}
       </section>
 
       {/* Source */}
@@ -226,7 +218,7 @@ export function Inspector() {
             <Toggle label="Loudness" on={ampState.loudness} onChange={(v) => set({ loudness: v })} hint="Lifts bass and treble more at low volume" />
             <Toggle label="Speakers A" on={ampState.speakersA} onChange={(v) => set({ speakersA: v })} />
           </div>
-          <VUMeters unavailable={spotify} />
+          <VUMeters />
           <div role="radiogroup" aria-label="Input selector" className="flex gap-1.5">
             {amp.inputs.map((i) => (
               <button

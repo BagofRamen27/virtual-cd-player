@@ -26,8 +26,7 @@ class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, {
 
 function DiscPicker() {
   const local = usePlayer((s) => s.albums);
-  const saved = usePlayer((s) => s.spotifyAlbums);
-  const albums = useMemo(() => [...local, ...saved], [local, saved]);
+  const albums = local;
   const inserted = usePlayer((s) => s.insertedAlbumId);
   const insert = usePlayer((s) => s.insertDisc);
   return (

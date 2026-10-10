@@ -1,5 +1,5 @@
 import { audioEngine } from '../audio/AudioEngine';
-import { activeAdapterKind, spotifyAdapter, usePlayer } from '../state/store';
+import { usePlayer } from '../state/store';
 import { computeDspParams, type DspParams } from './dsp';
 import { currentAmpState, currentRoute, profileFor, rackOf, useHifi } from './store';
 
@@ -8,9 +8,6 @@ import { currentAmpState, currentRoute, profileFor, rackOf, useHifi } from './st
  * amp knobs, A/B settings) becomes real audio parameters.
  *
  * Local / demo audio → full DSP chain.
- * Spotify → its audio can't be routed through Web Audio (and may not be altered), so only the
- *           resulting *volume* (including silence for an invalid route) is sent to the
- *           Spotify player; tone and speaker/headphone emulation are visual-only.
  */
 export function currentDspParams(): DspParams {
   const h = useHifi.getState();
@@ -36,13 +33,10 @@ export function startHifiBridge() {
   let last = '';
   const sync = () => {
     const params = currentDspParams();
-    const key = JSON.stringify(params) + activeAdapterKind();
+    const key = JSON.stringify(params);
     if (key === last) return;
     last = key;
     audioEngine.setDsp(params);
-    // Spotify: volume only (never processing).
-    const spotifyVolume = Math.min(1, params.routeGain * params.sourceGain * (params.throughAmp ? params.ampGain : 1));
-    spotifyAdapter.setVolume(spotifyVolume);
   };
   useHifi.subscribe(sync);
   usePlayer.subscribe((s, prev) => {

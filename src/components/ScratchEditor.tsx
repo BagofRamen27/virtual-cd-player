@@ -191,7 +191,7 @@ function EditorBody({ album }: { album: Album }) {
         </div>
         <p className="text-xs leading-relaxed text-muted">
           Condition: {CONDITION_LABELS[profile.condition]} · {userStrokes.length} hand-made scratch{userStrokes.length === 1 ? '' : 'es'}. Changes save automatically
-          {album.source === 'spotify' ? ' and make this Spotify disc skip (via Spotify’s seek control).' : ' and apply to playback immediately.'}
+          {' and apply to playback immediately.'}
         </p>
       </div>
     </div>

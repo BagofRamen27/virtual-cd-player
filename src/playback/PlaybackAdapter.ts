@@ -17,7 +17,7 @@ export type AdapterEvent =
 
 /** Shared interface so the player UI never needs to know where audio comes from. */
 export interface PlaybackAdapter {
-  readonly kind: 'local' | 'spotify';
+  readonly kind: 'local';
   /** Whether audible damage simulation is allowed for this source. */
   readonly supportsDamage: boolean;
   /** Prepare an album without starting playback. */

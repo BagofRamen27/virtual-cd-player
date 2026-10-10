@@ -1,6 +1,4 @@
 import { usePlayer } from '../state/store';
-import { redirectUri, spotifyConfigured } from '../spotify/auth';
-import { SPOTIFY_ENABLED } from '../spotify/config';
 import { store } from '../db/idb';
 import { Button, Dialog } from './ui';
 
@@ -34,8 +32,7 @@ const SHORTCUTS: [string, string][] = [
 export function SettingsDialog() {
   const open = usePlayer((s) => s.settingsOpen);
   const settings = usePlayer((s) => s.settings);
-  const spotify = usePlayer((s) => s.spotify);
-  const { updateSettings, setUi, logoutSpotify, loginSpotify } = usePlayer.getState();
+  const { updateSettings, setUi } = usePlayer.getState();
   const close = () => setUi({ settingsOpen: false });
 
   return (
@@ -69,44 +66,6 @@ export function SettingsDialog() {
         <Toggle label="2D player" hint="Use a lightweight flat player instead of the 3D stage." checked={settings.force2D} onChange={(v) => updateSettings({ force2D: v })} />
         <Toggle label="Mechanical sounds" hint="Quiet button clicks and lid sounds." checked={settings.sounds} onChange={(v) => updateSettings({ sounds: v })} />
       </section>
-
-      {SPOTIFY_ENABLED && <section className="mt-6">
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Spotify</h3>
-        {!spotifyConfigured() ? (
-          <div className="rounded-2xl bg-surface-2/50 p-4 text-sm text-ink-soft">
-            <p>Spotify is not configured for this deployment, so DiscDeck is running in demo mode with local files.</p>
-            <p className="mt-2 text-xs text-muted">
-              To enable it, create an app in the Spotify Developer Dashboard, add <code className="font-mono">{redirectUri()}</code> as a Redirect URI, and set{' '}
-              <code className="font-mono">VITE_SPOTIFY_CLIENT_ID</code> in <code className="font-mono">.env</code>. See the README.
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-2xl bg-surface-2/50 p-4 text-sm text-ink-soft">
-            {spotify.status === 'connected' ? (
-              <>
-                <p>
-                  Connected as <strong className="font-medium text-ink">{spotify.user?.display_name ?? spotify.user?.id}</strong>
-                  {spotify.user?.product ? ` (${spotify.user.product})` : ''}.
-                </p>
-                {spotify.message && <p className="mt-1 text-xs text-muted">{spotify.message}</p>}
-                <Button size="sm" className="mt-3" onClick={() => void logoutSpotify()}>
-                  Disconnect
-                </Button>
-              </>
-            ) : (
-              <>
-                <p>{spotify.status === 'error' ? spotify.message : 'Not connected.'}</p>
-                <Button size="sm" variant="solid" className="mt-3" onClick={() => void loginSpotify()}>
-                  Connect Spotify
-                </Button>
-              </>
-            )}
-            <p className="mt-3 text-xs leading-relaxed text-muted">
-              Playback uses Spotify’s official Web Playback SDK and requires Premium. Spotify audio is never recorded or modified; scratched Spotify discs skip using Spotify’s own seek control.
-            </p>
-          </div>
-        )}
-      </section>}
 
       <section className="mt-6">
         <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Keyboard</h3>

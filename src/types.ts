@@ -1,4 +1,4 @@
-export type SourceKind = 'local' | 'spotify' | 'demo';
+export type SourceKind = 'local' | 'demo';
 
 export interface Track {
   id: string;
@@ -6,8 +6,6 @@ export interface Track {
   artist: string;
   /** Duration in seconds; 0 when not yet known. */
   duration: number;
-  /** Spotify track URI (spotify source only). */
-  uri?: string;
   /** Key of the stored audio blob in IndexedDB (local source only). */
   fileKey?: string;
 }
@@ -23,9 +21,6 @@ export interface Album {
   /** Warm accent used for generated covers and labels. */
   tint: string;
   tracks: Track[];
-  /** Spotify album URI / web URL for attribution links. */
-  spotifyUri?: string;
-  spotifyUrl?: string;
   /** Local albums: true when audio blobs could not be persisted (session-only). */
   sessionOnly?: boolean;
   addedAt: number;

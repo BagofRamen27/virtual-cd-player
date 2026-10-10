@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "A cozy 3D virtual CD player with local audio, a deterministic scratch simulator, and Spotify integration.",
+  "description": "A cozy 3D virtual CD player with local audio, a deterministic scratch simulator.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

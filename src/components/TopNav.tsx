@@ -1,56 +1,12 @@
 import { usePlayer } from '../state/store';
 import { useHifi } from '../hifi/store';
-import { Icon, IconButton, Pill } from './ui';
+import { Icon, IconButton } from './ui';
 import { BurnCD } from './BurnCD';
-import { SPOTIFY_ENABLED } from '../spotify/config';
-
-function SpotifyStatus() {
-  const spotify = usePlayer((s) => s.spotify);
-  const login = usePlayer((s) => s.loginSpotify);
-  const setUi = usePlayer((s) => s.setUi);
-
-  switch (spotify.status) {
-    case 'unconfigured':
-      return (
-        <button type="button" onClick={() => setUi({ settingsOpen: true })} className="rounded-full" title="Spotify is not configured — see Settings">
-          <Pill>Spotify not configured</Pill>
-        </button>
-      );
-    case 'disconnected':
-      return (
-        <button
-          type="button"
-          onClick={() => void login()}
-          className="inline-flex h-8 items-center gap-2 rounded-full border border-line px-3 text-[13px] font-medium text-ink-soft transition-colors hover:bg-surface-2/70"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-muted" aria-hidden="true" />
-          Connect Spotify
-        </button>
-      );
-    case 'connecting':
-      return <Pill>Connecting to Spotify…</Pill>;
-    case 'connected':
-      return (
-        <Pill tone={spotify.message ? 'warn' : 'accent'}>
-          <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-          Spotify · {spotify.user?.display_name ?? 'connected'}
-          {spotify.message ? ' · browse only' : ''}
-        </Pill>
-      );
-    case 'error':
-      return (
-        <button type="button" onClick={() => void login()} title={spotify.message} className="rounded-full">
-          <Pill tone="warn">Spotify error — reconnect</Pill>
-        </button>
-      );
-  }
-}
 
 export function TopNav() {
   const theme = usePlayer((s) => s.settings.theme);
   const update = usePlayer((s) => s.updateSettings);
   const setUi = usePlayer((s) => s.setUi);
-  const spotifyConnected = usePlayer((s) => s.spotify.status === 'connected');
 
   const view = useHifi((s) => s.view);
   const setView = useHifi((s) => s.setView);
@@ -100,14 +56,6 @@ export function TopNav() {
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">
         <BurnCD />
-        {SPOTIFY_ENABLED && !spotifyConnected && (
-          <span className="hidden sm:inline">
-            <Pill tone="warn">Demo mode</Pill>
-          </span>
-        )}
-        {SPOTIFY_ENABLED && <span className="hidden sm:inline-flex">
-          <SpotifyStatus />
-        </span>}
         <IconButton label="Settings" onClick={() => setUi({ settingsOpen: true })}>
           <Icon name="settings" />
         </IconButton>
