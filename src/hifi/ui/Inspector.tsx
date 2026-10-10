@@ -9,6 +9,7 @@ import type { FilterSpec } from '../types';
 import { DEMO_ALBUM_ID } from '../../audio/demoAlbum';
 import { RotaryKnob } from './RotaryKnob';
 import { VUMeters } from './VUMeters';
+import { TabAudioMeterPanel } from './TabAudioMeterPanel';
 
 function Slider({
   label,
@@ -153,6 +154,7 @@ export function Inspector() {
 
   return (
     <div className="space-y-4 px-5 pb-8 pt-4 text-sm">
+      <TabAudioMeterPanel />
       <details className="space-y-3 rounded-2xl border border-line bg-surface/70 p-4">
         <summary className="min-h-7 cursor-pointer text-sm font-medium">Hear the difference · comparison demo</summary>
         <p className="text-xs text-ink-soft">Switch systems while the same track plays. Listen for deep bass, crisp percussion, and stereo separation.</p>

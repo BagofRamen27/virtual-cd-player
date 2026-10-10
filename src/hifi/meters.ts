@@ -1,6 +1,7 @@
 import { audioEngine } from '../audio/AudioEngine';
 import type { MeterReading } from './HifiChain';
 import { VuDisplay } from './vu';
+import { tabAudioMeter } from './TabAudioMeter';
 
 const ZERO: MeterReading = { inL: 0, inR: 0, outL: 0, outR: 0, outRmsL: 0, outRmsR: 0, clip: false };
 let cache: { at: number; value: MeterReading } = { at: 0, value: ZERO };
@@ -16,7 +17,7 @@ export function readMeters(): MeterReading & { clipHeld: boolean; vuL: number; v
   const now = performance.now();
   if (now - cache.at > 14) {
     const elapsed = (now - cache.at) / 1000;
-    cache = { at: now, value: audioEngine.readMeters() ?? ZERO };
+    cache = { at: now, value: tabAudioMeter.getSnapshot().state === 'active' ? tabAudioMeter.readMeters() ?? ZERO : audioEngine.readMeters() ?? ZERO };
     display = vu.update(cache.value.outRmsL, cache.value.outRmsR, elapsed);
     if (cache.value.clip) clipUntil = now + 1000;
   }
