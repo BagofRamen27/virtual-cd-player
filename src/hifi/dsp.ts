@@ -8,6 +8,13 @@ import type { Route } from './routing';
 export const dbToGain = (db: number) => Math.pow(10, db / 20);
 export const gainToDb = (g: number) => 20 * Math.log10(Math.max(g, 1e-9));
 
+/** Measure the actual waveform; RMS drives VU needles, peak drives clipping meters. */
+export function signalLevels(samples: Float32Array): { peak: number; rms: number } {
+  let peak = 0; let squares = 0;
+  for (const sample of samples) { peak = Math.max(peak, Math.abs(sample)); squares += sample * sample; }
+  return { peak, rms: samples.length ? Math.sqrt(squares / samples.length) : 0 };
+}
+
 /** Volume knob audio taper: 0 → silence, 0.5 → −20 dB, 1 → 0 dB (never above unity). */
 export function volumeTaper(v: number): number {
   const x = Math.min(1, Math.max(0, v));

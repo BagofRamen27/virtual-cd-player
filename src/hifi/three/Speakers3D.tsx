@@ -10,12 +10,19 @@ export interface SpeakerLook {
   w: number;
   h: number;
   d: number;
-  cabinet: 'walnut' | 'plastic';
+  cabinet: 'walnut' | 'plastic' | 'black';
   woofer: number;
   tweeter: number;
+  midrange?: number;
+  coneColor?: string;
+  grilleColor?: string;
+  sealed?: boolean;
 }
 
 export const SPEAKER_LOOKS: Record<string, SpeakerLook> = {
+  'jbl-l100': { w: 1.0, h: 1.65, d: 0.85, cabinet: 'walnut', woofer: 0.34, tweeter: 0.07, midrange: 0.13, coneColor: '#ece5d4', grilleColor: '#b95c24', sealed: true },
+  'yamaha-ns1000m': { w: 0.96, h: 1.65, d: 0.85, cabinet: 'black', woofer: 0.32, tweeter: 0.075, midrange: 0.13, sealed: true },
+  'yamaha-ns10m': { w: 0.7, h: 1.05, d: 0.65, cabinet: 'black', woofer: 0.22, tweeter: 0.06, coneColor: '#f1f0e8', sealed: true },
   'bookshelf-premium': { w: 0.85, h: 1.35, d: 0.95, cabinet: 'walnut', woofer: 0.25, tweeter: 0.055 },
   'mini-cheap': { w: 0.55, h: 0.75, d: 0.55, cabinet: 'plastic', woofer: 0.17, tweeter: 0 },
 };
@@ -24,7 +31,7 @@ export const SPEAKER_LOOKS: Record<string, SpeakerLook> = {
  * A woofer with real anatomy: cast basket rim with screws, rubber surround, paper cone and dust
  * cap. The cone moves with the real output level of its channel while this pair is playing.
  */
-function Woofer({ radius, channel, active, y, z }: { radius: number; channel: 'L' | 'R'; active: boolean; y: number; z: number }) {
+function Woofer({ radius, channel, active, y, z, color }: { radius: number; channel: 'L' | 'R'; active: boolean; y: number; z: number; color?: string }) {
   const cone = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
     if (!cone.current) return;
@@ -62,7 +69,7 @@ function Woofer({ radius, channel, active, y, z }: { radius: number; channel: 'L
         {/* paper cone (opens toward the listener) */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -radius * 0.17]}>
           <coneGeometry args={[radius * 0.95, radius * 0.34, 64, 1, true]} />
-          <meshStandardMaterial map={paperCone()} roughness={0.92} side={THREE.DoubleSide} />
+          <meshStandardMaterial map={color ? undefined : paperCone()} color={color ?? '#ffffff'} roughness={0.92} side={THREE.DoubleSide} />
         </mesh>
         {/* dust cap */}
         <mesh position={[0, 0, -radius * 0.24]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 0.55, 1]}>
@@ -107,23 +114,24 @@ function Tweeter({ radius, y, z }: { radius: number; y: number; z: number }) {
 
 export function SpeakerCabinet({ look, channel, active }: { look: SpeakerLook; channel: 'L' | 'R'; active: boolean }) {
   const front = look.d / 2;
-  const premium = look.cabinet === 'walnut';
+  const premium = look.cabinet !== 'plastic';
   return (
     <group position={[0, look.h / 2 + 0.02, 0]}>
       {premium ? (
         <>
           {/* Veneered cabinet with the grain running vertically */}
           <RoundedBox args={[look.w, look.h, look.d]} radius={0.018} smoothness={3} castShadow receiveShadow>
-            <meshPhysicalMaterial map={woodColor('walnut', 5, true, 1024)} roughnessMap={woodRoughness(5)} roughness={1} clearcoat={0.4} clearcoatRoughness={0.25} />
+            <meshPhysicalMaterial map={look.cabinet === 'black' ? undefined : woodColor('walnut', 5, true, 1024)} color={look.cabinet === 'black' ? '#232628' : '#ffffff'} roughnessMap={woodRoughness(5)} roughness={0.8} clearcoat={0.15} clearcoatRoughness={0.5} />
           </RoundedBox>
           {/* Satin-black baffle, slightly proud of the cabinet */}
           <RoundedBox args={[look.w - 0.035, look.h - 0.035, 0.03]} radius={0.01} smoothness={2} position={[0, 0, front + 0.004]} castShadow>
             <meshPhysicalMaterial color="#1b1816" roughness={0.55} clearcoat={0.25} clearcoatRoughness={0.5} />
           </RoundedBox>
-          <Woofer radius={look.woofer} channel={channel} active={active} y={-look.h * 0.1} z={front + 0.022} />
+          <Woofer radius={look.woofer} channel={channel} active={active} y={-look.h * (look.midrange ? 0.2 : 0.1)} z={front + 0.022} color={look.coneColor} />
+          {look.midrange && <Woofer radius={look.midrange} channel={channel} active={active} y={look.h * 0.12} z={front + 0.025} />}
           <Tweeter radius={look.tweeter} y={look.h * 0.29} z={front + 0.02} />
           {/* Front bass port */}
-          <group position={[0, -look.h * 0.39, front + 0.02]}>
+          {!look.sealed && <group position={[0, -look.h * 0.39, front + 0.02]}>
             <mesh rotation={[Math.PI / 2, 0, 0]}>
               <torusGeometry args={[0.06, 0.012, 10, 32]} />
               <meshStandardMaterial color="#141210" roughness={0.6} />
@@ -132,7 +140,19 @@ export function SpeakerCabinet({ look, channel, active }: { look: SpeakerLook; c
               <circleGeometry args={[0.06, 32]} />
               <meshStandardMaterial color="#050404" />
             </mesh>
-          </group>
+          </group>}
+          {look.grilleColor && (
+            <group position={[0, 0, front + 0.055]}>
+              <RoundedBox args={[look.w - 0.075, look.h - 0.075, 0.055]} radius={0.015} smoothness={2}>
+                <meshStandardMaterial color={look.grilleColor} roughness={1} map={grilleCloth('#db8550')} />
+              </RoundedBox>
+              {Array.from({ length: 8 }, (_, row) => Array.from({ length: 5 }, (_, col) => (
+                <mesh key={`${row}-${col}`} position={[(col - 2) * 0.18, (row - 3.5) * 0.19, 0.03]}>
+                  <boxGeometry args={[0.12, 0.13, 0.016]} /><meshStandardMaterial color="#85431f" roughness={1} />
+                </mesh>
+              )))}
+            </group>
+          )}
           {/* Small metal badge */}
           <mesh position={[0, -look.h * 0.46, front + 0.021]}>
             <boxGeometry args={[0.14, 0.022, 0.003]} />
@@ -143,7 +163,7 @@ export function SpeakerCabinet({ look, channel, active }: { look: SpeakerLook; c
         <>
           {/* Moulded matte plastic with a visible parting line */}
           <RoundedBox args={[look.w, look.h, look.d]} radius={0.04} smoothness={4} castShadow receiveShadow>
-            <meshStandardMaterial color="#2b2826" roughness={0.68} metalness={0.05} bumpMap={plasticBump()} bumpScale={0.6} />
+            <meshStandardMaterial color="#2b2826" roughness={0.68} metalness={0.05} bumpMap={plasticBump()} bumpScale={0.002} />
           </RoundedBox>
           <mesh position={[0, 0, front - 0.06]}>
             <boxGeometry args={[look.w + 0.002, look.h + 0.002, 0.004]} />

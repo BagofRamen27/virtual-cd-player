@@ -135,6 +135,37 @@ export async function renderDemoTrack(index: number, sampleRate: number): Promis
     notes.forEach((n, i) => voice(midiHz(n + 12), t, bar + 0.6, 0.05, spec.wave, (i - 1.5) * 0.35, 0.9));
     // Bass
     voice(midiHz(chord.root - 12), t, bar, 0.12, 'sine', 0, 0.05);
+    // Full-spectrum percussion bypasses the pad's low-pass. Bright, alternating
+    // hats and bass transients make bandwidth and stereo changes audible.
+    for (let step = 0; step < 8; step++) {
+      const start = t + step * beat / 2;
+      const hat = ctx.createBuffer(1, Math.ceil(sampleRate * 0.09), sampleRate);
+      const samples = hat.getChannelData(0);
+      for (let i = 0; i < samples.length; i++) samples[i] = (rng() * 2 - 1) * Math.exp(-i / (sampleRate * 0.018));
+      const noise = ctx.createBufferSource();
+      noise.buffer = hat;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 5000;
+      const level = ctx.createGain();
+      level.gain.value = 0.075;
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = step % 2 ? 0.8 : -0.8;
+      noise.connect(hp).connect(level).connect(pan).connect(master);
+      noise.start(start);
+      if (step % 4 === 0) {
+        const kick = ctx.createOscillator();
+        kick.frequency.setValueAtTime(110, start);
+        kick.frequency.exponentialRampToValueAtTime(45, start + 0.12);
+        const envelope = ctx.createGain();
+        envelope.gain.setValueAtTime(0, start);
+        envelope.gain.linearRampToValueAtTime(0.2, start + 0.005);
+        envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+        kick.connect(envelope).connect(master);
+        kick.start(start);
+        kick.stop(start + 0.3);
+      }
+    }
     // Gentle arpeggio, sparser in the intro and outro
     const density = b === 0 || b === bars - 1 ? 0.35 : 0.8;
     for (let s = 0; s < 8; s++) {

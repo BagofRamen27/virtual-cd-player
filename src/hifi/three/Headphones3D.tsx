@@ -29,7 +29,7 @@ export function Headphones3D({ kind, active }: { kind: string; active: boolean }
       </mesh>
       <mesh castShadow rotation={[0, 0, Math.PI * 0.15]}>
         <torusGeometry args={[0.42, 0.035, 12, 48, Math.PI * 0.7]} />
-        <meshStandardMaterial color="#1f1c1a" roughness={0.7} bumpMap={leather()} bumpScale={0.8} />
+        <meshStandardMaterial color="#1f1c1a" roughness={0.7} bumpMap={leather()} bumpScale={0.004} />
       </mesh>
       {[-0.42, 0.42].map((x) => (
         <group key={x} position={[x, -0.02, 0]}>
@@ -46,7 +46,7 @@ export function Headphones3D({ kind, active }: { kind: string; active: boolean }
           {/* leather ear pad */}
           <mesh rotation={[0, Math.PI / 2, 0]} position={[x > 0 ? -0.075 : 0.075, 0, 0]}>
             <torusGeometry args={[0.12, 0.045, 14, 40]} />
-            <meshStandardMaterial color="#171513" roughness={0.65} bumpMap={leather()} bumpScale={1.2} side={THREE.DoubleSide} />
+            <meshStandardMaterial color="#171513" roughness={0.65} bumpMap={leather()} bumpScale={0.004} side={THREE.DoubleSide} />
           </mesh>
         </group>
       ))}

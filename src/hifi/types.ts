@@ -3,7 +3,7 @@
  * to the catalog without touching the routing or DSP code.
  */
 
-export type Era = '1980s' | '1990s' | '2000s' | '2010s' | 'modern';
+export type Era = '1970s' | '1980s' | '1990s' | '2000s' | '2010s' | 'modern';
 export type Tier = 'entry' | 'midrange' | 'premium';
 
 /** Physical connector on a port. */
@@ -34,6 +34,8 @@ export interface Evidence {
 }
 
 interface DeviceBase {
+  /** Primary historical reference for real-model recreations. */
+  referenceUrl?: string;
   id: string;
   slot: Slot;
   era: Era;
@@ -47,9 +49,9 @@ interface DeviceBase {
 
 export interface SourceDevice extends DeviceBase {
   slot: 'source';
-  category: 'portable' | 'boombox';
+  category: 'portable' | 'boombox' | 'deck';
   /** Visual model to render in the rack. */
-  visualModel: 'dd1' | 'boombox';
+  visualModel: 'dd1' | 'boombox' | 'deck';
   /** Profile used when the device plays through its own built-in speakers. */
   builtInSpeakerProfileId?: string;
   /** Whether plugging into the headphone jack mutes the built-in speakers. */

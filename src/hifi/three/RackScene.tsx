@@ -13,6 +13,8 @@ import { Boombox3D, BOOMBOX_JACKS } from './Boombox3D';
 import { Headphones3D } from './Headphones3D';
 import { RoomEnvironment } from './RoomEnvironment';
 import { SpeakerCabinet, SPEAKER_LOOKS, speakerTerminalLocal } from './Speakers3D';
+import { CDDeck3D, DECK_JACKS } from './CDDeck3D';
+import { deviceById } from '../catalog';
 
 const DD1_SCALE = 0.42;
 const POS = {
@@ -36,6 +38,10 @@ const FRONT = new THREE.Vector3(0, 0, 1);
 function anchors(slot: Slot, port: string, sourceId: string, speakersId: string | null): Anchor[] {
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
   if (slot === 'source') {
+    if (deviceById(sourceId)?.slot === 'source' && sourceId !== 'dd1' && sourceId !== 'boombox-2003') {
+      const j = DECK_JACKS[port] ?? [0.9, 0.18, -0.8];
+      return [{ pos: POS.dd1.clone().add(v(...j)), dir: BACK }];
+    }
     if (sourceId === 'boombox-2003') {
       const j = BOOMBOX_JACKS[port] ?? [0, 0.5, 0];
       return [{ pos: POS.boombox.clone().add(v(j[0], j[1] + 0.6, j[2])), dir: FRONT }];
@@ -143,11 +149,11 @@ function FitCamera({ view, sourceId }: { view: RoomView; sourceId: string }) {
     const target = view === 'amp' ? POS.amp.clone().add(new THREE.Vector3(0, 0.28, 0.4))
       : view === 'source' ? (sourceId === 'boombox-2003' ? POS.boombox : POS.dd1).clone().add(new THREE.Vector3(0, 0.3, 0)) : TARGET;
     const halfWidth = view === 'room' ? 3.95 : view === 'amp' ? 1.4 : 1.25;
-    const halfHeight = view === 'room' ? 1.7 : 0.85;
+    const halfHeight = view === 'room' ? 1.7 : view === 'amp' ? 0.6 : 0.8;
     const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const aspect = size.width / Math.max(1, size.height);
     const dist = Math.max(halfWidth / (tanV * aspect), halfHeight / tanV) + 0.9;
-    const direction = view === 'source' && sourceId !== 'boombox-2003' ? new THREE.Vector3(0, 0.85, 1).normalize() : VIEW_DIR;
+    const direction = view === 'source' && (sourceId === 'dd1' || sourceId === 'philips-cd100') ? new THREE.Vector3(0, 0.85, 1).normalize() : view === 'amp' ? new THREE.Vector3(0, 0.16, 1).normalize() : VIEW_DIR;
     camera.position.copy(target).addScaledVector(direction, Math.max(view === 'room' ? 6 : 3, dist));
     camera.lookAt(target);
   }, [camera, size.width, size.height, view, sourceId]);
@@ -185,17 +191,17 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
       shadows={high ? 'percentage' : false}
       dpr={high ? [1, 2] : 1}
       camera={{ position: [0, 2.7, 7.9], fov: 40, near: 0.1, far: 80 }}
-      gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dark ? 0.95 : 1.05 }}
+      gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dark ? 1.15 : 1.1 }}
       aria-hidden="true"
     >
       <fog attach="fog" args={[dark ? '#1b1613' : '#eadfce', 16, 34]} />
       {/* Ambient bounce: warm sky from the window, brown bounce from the wooden floor and furniture */}
-      <hemisphereLight args={[dark ? '#7a6250' : '#fff1dc', dark ? '#2a1d14' : '#7a5a40', dark ? 0.35 : 0.55]} />
+      <hemisphereLight args={['#e7edf1', '#635b50', dark ? 0.75 : 0.85]} />
       {/* Key: late-afternoon window light from the left, soft and warm */}
       <directionalLight
         position={[-6, 7, 6]}
-        intensity={dark ? 0.9 : 1.7}
-        color="#ffd2a0"
+        intensity={dark ? 1.8 : 2.2}
+        color="#fff1df"
         castShadow={high}
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0003}
@@ -206,13 +212,15 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
         shadow-camera-bottom={-6}
       />
       {/* Cool, faint rim from the right to separate the gear from the wall */}
-      <directionalLight position={[6, 4, -3]} intensity={dark ? 0.25 : 0.45} color="#dfe6ff" />
+      <directionalLight position={[6, 4, -3]} intensity={0.65} color="#dfe6ff" />
       <Suspense fallback={null}>
         <WarmEnvironment dark={dark} />
       </Suspense>
       <RoomEnvironment dark={dark} />
 
-      {rack.source?.visualModel === 'boombox' ? (
+      {rack.source?.visualModel === 'deck' ? (
+        <group position={POS.dd1}><CDDeck3D /></group>
+      ) : rack.source?.visualModel === 'boombox' ? (
         <group position={POS.boombox}>
           <Boombox3D builtinsActive={out === 'builtin'} />
         </group>
@@ -254,9 +262,9 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
       <ContactShadows position={[0, 0.002, 0]} opacity={dark ? 0.6 : 0.4} scale={14} blur={2.4} far={3} resolution={high ? 512 : 256} frames={high ? Infinity : 1} color="#251F1B" />
       {high && (
         <EffectComposer multisampling={0} enableNormalPass={false}>
-          <N8AO halfRes aoRadius={0.6} intensity={dark ? 2 : 2.6} distanceFalloff={0.8} color="#2a1b10" />
-          <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.15} intensity={0.4} />
-          <Vignette offset={0.32} darkness={dark ? 0.55 : 0.38} />
+          <N8AO halfRes aoRadius={0.3} intensity={1.2} distanceFalloff={0.8} color="#262728" />
+          <Bloom mipmapBlur luminanceThreshold={1.4} luminanceSmoothing={0.15} intensity={0.12} />
+          <Vignette offset={0.32} darkness={0.18} />
         </EffectComposer>
       )}
     </Canvas>

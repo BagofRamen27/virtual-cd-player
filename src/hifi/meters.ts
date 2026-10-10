@@ -1,7 +1,7 @@
 import { audioEngine } from '../audio/AudioEngine';
 import type { MeterReading } from './HifiChain';
 
-const ZERO: MeterReading = { inL: 0, inR: 0, outL: 0, outR: 0, clip: false };
+const ZERO: MeterReading = { inL: 0, inR: 0, outL: 0, outR: 0, outRmsL: 0, outRmsR: 0, clip: false };
 let cache: { at: number; value: MeterReading } = { at: 0, value: ZERO };
 let clipUntil = 0;
 
