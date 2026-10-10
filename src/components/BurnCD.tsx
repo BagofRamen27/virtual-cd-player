@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { CoverUpload } from './CoverUpload';
 import { Button, Dialog, Icon } from './ui';
 import { isAudioFile, probeDuration } from '../lib/importAudio';
 import { readTags } from '../lib/id3';
@@ -17,6 +18,8 @@ export function BurnCD() {
   const [artist, setArtist] = useState('Various artists'), [minutes, setMinutes] = useState(80);
   const [tracks, setTracks] = useState<BurnTrack[]>([]), [busy, setBusy] = useState('');
   const [message, setMessage] = useState(''), [burned, setBurned] = useState<Album | null>(null);
+  const [cover, setCover] = useState<string>();
+  const preview = useMemo(() => cover || generateCover(title.trim() || 'My mixtape', artist.trim(), tintFor(title + artist)), [cover, title, artist]);
   const input = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null);
   const duration = discSeconds(tracks.map(t => t.duration));
   const issue = validateDisc(title, tracks.map(t => t.duration), minutes);
@@ -45,7 +48,7 @@ export function BurnCD() {
     setBusy('Burning virtual disc…'); setMessage('');
     const id = `local-${crypto.randomUUID()}`, tint = tintFor(title + artist);
     const album: Album = { id, source: 'local', title: title.trim(), artist: artist.trim() || 'Various artists', tint,
-      coverUrl: generateCover(title.trim(), artist.trim(), tint), tracks: [], addedAt: Date.now() };
+      coverUrl: preview, tracks: [], addedAt: Date.now() };
     try {
       await requestPersistence();
       for (const track of tracks) {
@@ -71,8 +74,9 @@ export function BurnCD() {
       const playlist = '#EXTM3U\n' + tracks.map((t, i) => `#EXTINF:${Math.round(t.duration)},${t.artist.replace(/[\r\n]/g, ' ')} - ${t.title.replace(/[\r\n]/g, ' ')}\n${names[i]}`).join('\n') + '\n';
       const zip = await discZip([
         ...tracks.map((t, i) => ({ name: `${root}/${names[i]}`, data: t.file })),
+        ...(burned.coverUrl?.startsWith('data:image/jpeg') ? [{ name: `${root}/cover.jpg`, data: await (await fetch(burned.coverUrl)).blob() }] : []),
         { name: `${root}/playlist.m3u8`, data: new Blob([playlist]) },
-        { name: `${root}/disc.json`, data: new Blob([JSON.stringify({ title: burned.title, artist: burned.artist, tracks: tracks.map((t, i) => ({ file: names[i], title: t.title, artist: t.artist, duration: t.duration })) }, null, 2)]) },
+        { name: `${root}/disc.json`, data: new Blob([JSON.stringify({ title: burned.title, artist: burned.artist, cover: 'cover.jpg', tracks: tracks.map((t, i) => ({ file: names[i], title: t.title, artist: t.artist, duration: t.duration })) }, null, 2)]) },
       ]);
       const url = URL.createObjectURL(zip), link = document.createElement('a');
       link.href = url; link.download = `${root}.zip`; link.click();
@@ -84,7 +88,19 @@ export function BurnCD() {
     <Button size="sm" onClick={() => setOpen(true)}><Icon name="disc" size={15} />Burn CD</Button>
     <Dialog open={open} onClose={() => { if (!busy) setOpen(false); }} title="Burn a CD" wide dismissible={!busy}>
       <p className="mb-4 text-sm text-ink-soft">Make a virtual disc from your audio files. Mix albums, arrange tracks, then burn it to your shelf. Local audio supports hi-fi effects and live meters.</p>
-      <p className="mb-5 text-xs text-muted">Spotify and YouTube links cannot supply audio here. This creates a virtual disc and optional ZIP of your original files; it does not write a physical CD.</p>
+      <p className="mb-5 text-xs text-muted">Use downloaded audio files to create your disc. This creates a virtual disc and optional ZIP of your original files; it does not write a physical CD.</p>
+      <div className="mb-5">
+        <CoverUpload value={burned?.coverUrl || preview} disabled={!!busy} onBusyChange={active => setBusy(active ? 'Preparing album cover…' : '')} onChange={async image => {
+          if (burned) {
+            const updated = { ...burned, coverUrl: image };
+            await store.saveAlbum(updated);
+            usePlayer.setState(state => ({ albums: state.albums.map(album => album.id === updated.id ? updated : album) }));
+            setBurned(updated);
+          }
+          setCover(image);
+        }} />
+        {cover && !burned && <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => setCover(undefined)}>Use generated cover</Button>}
+      </div>
       {!burned && <>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Disc name<input className="mt-1 w-full rounded-xl border border-line bg-surface-2 p-2" value={title} disabled={!!busy} onChange={e => setTitle(e.target.value)} maxLength={100} /></label>
@@ -113,7 +129,7 @@ export function BurnCD() {
       {burned && <div className="flex flex-wrap gap-2">
         <Button variant="solid" disabled={!!busy} onClick={() => void download()}>Download album ZIP</Button>
         <Button disabled={!!busy} onClick={() => { setOpen(false); void usePlayer.getState().insertDisc(burned.id); }}>Insert disc</Button>
-        <Button disabled={!!busy} onClick={() => { setBurned(null); setTracks([]); setMessage(''); }}>Make another CD</Button>
+        <Button disabled={!!busy} onClick={() => { setBurned(null); setTracks([]); setCover(undefined); setMessage(''); }}>Make another CD</Button>
       </div>}
     </Dialog>
   </>;

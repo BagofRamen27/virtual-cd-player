@@ -22,7 +22,7 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
 
   constructor() {
     audioEngine.subscribe((m) => {
-      if (!this.album) return;
+      if (!this.album || !this.loaded) return;
       if (m.type === 'pos') {
         this.position = Math.min(m.seconds, this.duration);
         this.emitStatus();

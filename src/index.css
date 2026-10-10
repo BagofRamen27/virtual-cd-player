@@ -142,16 +142,47 @@ input[type='range'].dd-range::-moz-range-thumb {
   border: 2px solid var(--accent);
 }
 
-/* Jewel case: the disc slides out on hover / focus */
-.jewel .peek-disc {
-  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
-  transform: translateX(0) rotate(0deg);
+/* Clear polystyrene shell around a paper booklet and ribbed black tray. */
+.jewel-shell {
+  background: linear-gradient(135deg, #e4eaec, #819095 45%, #d4dfe2 85%);
+  border: 1px solid #a4b0b4;
+  box-shadow: 0 2px 1px #536167, 2px 4px 0 -1px #849094, 0 10px 13px -6px #0006, inset 0 0 0 1px #fff9;
+  transition: transform 200ms ease, box-shadow 200ms ease;
 }
-.jewel:hover .peek-disc,
-.jewel:focus-within .peek-disc,
-.jewel[data-selected='true'] .peek-disc {
-  transform: translateX(32%) rotate(40deg);
+.jewel:hover .jewel-shell { transform: translateY(-2px); }
+.jewel-booklet {
+  background: #ddd8ce;
+  box-shadow: 0 0 0 1px #15191b99, inset 0 0 3px #0006;
 }
+.jewel-hinge {
+  background: repeating-linear-gradient(90deg, #171a1b 0 1px, #363b3d 1px 2px, #111516 2px 3px);
+  border-left: 1px solid #fff6;
+  border-right: 1px solid #0009;
+  box-shadow: inset 1px 0 2px #ffffff40, 1px 0 1px #ffffff90;
+}
+.jewel-hinge::before, .jewel-hinge::after {
+  content: ''; position: absolute; left: 4%; width: 88%; height: 6%;
+  background: linear-gradient(#697579, #1a2022 55%, #697579);
+  border-radius: 1px; box-shadow: 0 1px 1px #0009;
+}
+.jewel-hinge::before { top: 4%; }
+.jewel-hinge::after { bottom: 4%; }
+.jewel-spine {
+  position: absolute; inset: 15% 0; display: flex; align-items: center; justify-content: center;
+  writing-mode: vertical-rl; font: 500 5px/1 sans-serif; letter-spacing: .7px; color: #c6ccce;
+}
+.jewel-lid {
+  border: 1px solid #f4ffff90;
+  background: linear-gradient(125deg, #ffffff1a 0%, #ffffff04 33%, #ffffff21 34%, #ffffff05 45%, transparent 64%, #080f1720 100%);
+  box-shadow: inset 2px 2px 1px #fff6, inset -2px -2px 1px #3c4b5066, 1px 0 1px #17222980;
+}
+.jewel-lid::before, .jewel-lid::after {
+  content: ''; position: absolute; left: 27%; width: 18%; height: 2%;
+  border: 1px solid #ffffff80; background: #adb9bb70; box-shadow: 0 1px 1px #18202540;
+}
+.jewel-lid::before { top: 1%; }
+.jewel-lid::after { bottom: 1%; }
+.jewel-latch { background: linear-gradient(90deg, #64737880, #ffffff90, #91a2a780); border-radius: 1px; }
 
 .cd-surface {
   background:

@@ -196,7 +196,7 @@ export function NowPlaying() {
                   <li key={t.id}>
                     <button
                       type="button"
-                      disabled={!isInserted || state === 'LOADING' || state === 'EJECTING' || state === 'ERROR'}
+                      disabled={!isInserted || state === 'LOADING' || state === 'EJECTING'}
                       onClick={() => void selectTrack(i, true)}
                       aria-current={current ? 'true' : undefined}
                       aria-label={`Play track ${i + 1}, ${t.title}, ${formatTime(t.duration)}`}

@@ -9,6 +9,7 @@ import { LocalAudioPlaybackAdapter } from '../playback/LocalAudioPlaybackAdapter
 import { SpotifyPlaybackAdapter } from '../playback/SpotifyPlaybackAdapter';
 import type { AdapterEvent, PlaybackAdapter } from '../playback/PlaybackAdapter';
 import * as spotifyAuth from '../spotify/auth';
+import { SPOTIFY_ENABLED } from '../spotify/config';
 import { getMe, getSavedAlbums, searchAlbums, type SpotifyUser } from '../spotify/api';
 
 export type DiscPhase = 'none' | 'inserting' | 'seated' | 'ejecting';
@@ -218,7 +219,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       initStarted = true;
       const [settings, stored, damage] = await Promise.all([db.loadSettings(), db.loadAlbums(), db.loadDamage()]);
       // Albums whose audio could only be held in memory cannot survive a reload.
-      const usable = stored.filter((a) => !a.sessionOnly);
+      const usable = stored.filter((a) => !a.sessionOnly && (a.source !== 'spotify' || SPOTIFY_ENABLED));
       for (const a of stored.filter((a) => a.sessionOnly)) void db.deleteAlbum(a);
       const demo = demoAlbum();
       set({
@@ -265,6 +266,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       if (!album) return;
       if (get().insertedAlbumId === albumId && get().state !== 'EMPTY') return get().notify('That disc is already in the player.');
       if (get().state === 'LOADING' || get().state === 'EJECTING') return;
+      if (album.source === 'spotify' && !SPOTIFY_ENABLED) return get().notify('Streaming is disabled. Choose a local or demo disc.');
       if (album.source === 'spotify' && get().spotify.status !== 'connected') {
         return get().notify('Connect Spotify before playing Spotify discs.');
       }
@@ -403,15 +405,16 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     async selectTrack(index, autoplay) {
       const album = get().findAlbum(get().insertedAlbumId);
       const st = get().state;
-      if (!album || !active || st === 'LOADING' || st === 'EJECTING' || st === 'ERROR') return;
+      if (!album || !active || st === 'LOADING' || st === 'EJECTING') return;
       if (index < 0 || index >= album.tracks.length) return;
       const play = autoplay ?? st === 'PLAYING';
+      if (play) set({ powered: true });
       if (play && get().lidOpen) {
         get().closeLid();
         await wait(LID_MS);
       }
       go('LOADING');
-      set({ trackIndex: index, position: 0, duration: album.tracks[index].duration });
+      set({ trackIndex: index, position: 0, duration: album.tracks[index].duration, errorMessage: null });
       try {
         await active.selectTrack(index, play);
         if (get().state === 'LOADING') go('READY');
@@ -476,6 +479,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     },
 
     async connectSpotify() {
+      if (!SPOTIFY_ENABLED) return;
       set({ spotify: { status: 'connecting' } });
       try {
         const user = await getMe();
@@ -494,6 +498,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       }
     },
     async loginSpotify() {
+      if (!SPOTIFY_ENABLED) return;
       try {
         await spotifyAuth.beginLogin();
       } catch (err) {
