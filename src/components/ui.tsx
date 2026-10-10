@@ -33,7 +33,7 @@ export function IconButton({ label, className = '', children, ...props }: Button
   );
 }
 
-export function Dialog({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+export function Dialog({ open, onClose, title, children, wide, dismissible = true }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; dismissible?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -45,7 +45,8 @@ export function Dialog({ open, onClose, title, children, wide }: { open: boolean
     <dialog
       ref={ref}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && onClose()}
+      onCancel={(e) => { if (!dismissible) e.preventDefault(); }}
+      onClick={(e) => dismissible && e.target === ref.current && onClose()}
       aria-label={title}
       className={`m-auto w-[calc(100%-2rem)] ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-3xl border border-line bg-surface p-0 text-ink shadow-[0_30px_80px_-20px_rgba(37,31,27,0.45)] backdrop:bg-espresso/40 backdrop:backdrop-blur-[2px]`}
     >
@@ -53,7 +54,7 @@ export function Dialog({ open, onClose, title, children, wide }: { open: boolean
         <div className="max-h-[85vh] overflow-y-auto p-6 sm:p-8">
           <div className="mb-5 flex items-start justify-between gap-4">
             <h2 className="font-display text-2xl font-light tracking-tight">{title}</h2>
-            <IconButton label="Close" onClick={onClose} className="-mr-2 -mt-1">
+            <IconButton label="Close" disabled={!dismissible} onClick={onClose} className="-mr-2 -mt-1">
               <Icon name="close" />
             </IconButton>
           </div>

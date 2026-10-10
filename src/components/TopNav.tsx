@@ -1,6 +1,7 @@
 import { usePlayer } from '../state/store';
 import { useHifi } from '../hifi/store';
 import { Icon, IconButton, Pill } from './ui';
+import { BurnCD } from './BurnCD';
 
 function SpotifyStatus() {
   const spotify = usePlayer((s) => s.spotify);
@@ -63,7 +64,7 @@ export function TopNav() {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line px-4 sm:px-6">
+    <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2 sm:px-6">
       <div className="flex min-w-0 items-center gap-3 sm:gap-6">
         <a href="/" className="flex items-baseline gap-2 rounded-md" aria-label="DiscDeck home">
           <span className="font-display text-[22px] font-light leading-none tracking-tight sm:text-[26px]">DiscDeck</span>
@@ -97,6 +98,7 @@ export function TopNav() {
         </div>
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">
+        <BurnCD />
         {!spotifyConnected && (
           <span className="hidden sm:inline">
             <Pill tone="warn">Demo mode</Pill>

@@ -9,18 +9,24 @@ export function isAudioFile(f: File): boolean {
   return f.type.startsWith('audio/') || AUDIO_EXT.test(f.name);
 }
 
-function probeDuration(file: Blob): Promise<number> {
+export function probeDuration(file: Blob): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const a = new Audio();
+    let finished = false;
     const done = (d: number) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      a.removeAttribute('src');
+      a.load();
       URL.revokeObjectURL(url);
       resolve(Number.isFinite(d) ? d : 0);
     };
     a.preload = 'metadata';
     a.onloadedmetadata = () => done(a.duration);
     a.onerror = () => done(0);
-    setTimeout(() => done(0), 8000);
+    const timer = setTimeout(() => done(0), 8000);
     a.src = url;
   });
 }
