@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
-import { readMeters, toDb } from '../meters';
+import { readMeters } from '../meters';
 
-export function VUMeters() {
+export function VUMeters({ unavailable = false }: { unavailable?: boolean }) {
   const [levels, setLevels] = useState([-60, -60]);
+  const [reference, setReference] = useState(-42);
   useEffect(() => {
-    let frame = 0; let last = 0; const smoothed = [-60, -60];
+    let frame = 0; let last = 0;
     const update = (now: number) => {
       if (now - last >= 40) {
-        const elapsed = Math.min(0.1, (now - last) / 1000); last = now;
+        last = now;
         const signal = readMeters();
-        const values = [toDb(signal.outRmsL) + 18, toDb(signal.outRmsR) + 18];
-        values.forEach((db, i) => { smoothed[i] += (db - smoothed[i]) * (1 - Math.exp(-elapsed / (db > smoothed[i] ? 0.12 : 0.3))); });
-        setLevels([...smoothed]);
+        setLevels(unavailable ? [-60, -60] : [signal.vuL, signal.vuR]);
+        setReference(signal.vuReferenceDb);
       }
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [unavailable]);
   return (
     <div aria-label="Live stereo VU meters" className="rounded-xl bg-[#161a1b] p-3">
       <div className="grid grid-cols-2 gap-2">
@@ -36,7 +36,7 @@ export function VUMeters() {
           </svg>;
         })}
       </div>
-      <p className="mt-2 text-center text-[10px] text-[#b9c1bd]">Live output RMS · 0 VU = −18 dBFS</p>
+      <p className="mt-2 text-center text-[10px] text-[#b9c1bd]">{unavailable ? 'VU unavailable: Spotify does not expose audio levels.' : `Live output RMS · Auto range · 0 VU = ${reference.toFixed(0)} dBFS`}</p>
     </div>
   );
 }
