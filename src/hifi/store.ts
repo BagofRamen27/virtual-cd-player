@@ -18,6 +18,24 @@ export interface HifiPreset {
 
 export const PRESETS: HifiPreset[] = [
   {
+    id: 'vintage-marantz', name: '1970s Marantz + JBL', blurb: 'Sony CDP-101 → Marantz 2270 AUX → JBL L100',
+    rack: { source: 'sony-cdp101', amp: 'marantz-2270', speakers: 'jbl-l100', headphones: 'studio-closed' },
+    wires: [[{ slot: 'source', port: 'line-out' }, { slot: 'amp', port: 'in-cd' }], [{ slot: 'amp', port: 'spk-a' }, { slot: 'speakers', port: 'terminals' }]],
+    amp: { power: true, input: 'AUX', speakersA: true },
+  },
+  {
+    id: 'vintage-yamaha', name: '1970s Yamaha separates', blurb: 'Philips CD100 → Yamaha CA-1000 AUX → NS-1000M',
+    rack: { source: 'philips-cd100', amp: 'yamaha-ca1000', speakers: 'yamaha-ns1000m', headphones: 'studio-closed' },
+    wires: [[{ slot: 'source', port: 'line-out' }, { slot: 'amp', port: 'in-cd' }], [{ slot: 'amp', port: 'spk-a' }, { slot: 'speakers', port: 'terminals' }]],
+    amp: { power: true, input: 'AUX', speakersA: true },
+  },
+  {
+    id: 'vintage-studio', name: '1980s Yamaha studio', blurb: 'Yamaha CD-1 → R-9 AUX → NS-10M Studio',
+    rack: { source: 'yamaha-cd1', amp: 'yamaha-r9', speakers: 'yamaha-ns10m', headphones: 'studio-closed' },
+    wires: [[{ slot: 'source', port: 'line-out' }, { slot: 'amp', port: 'in-cd' }], [{ slot: 'amp', port: 'spk-a' }, { slot: 'speakers', port: 'terminals' }]],
+    amp: { power: true, input: 'AUX', speakersA: true },
+  },
+  {
     id: 'living-room',
     name: 'Living-room hi-fi',
     blurb: 'DD-1 → 1980s integrated amp → premium bookshelf speakers',
@@ -202,13 +220,14 @@ export const useHifi = create<HifiState>()(
           }
           get().connect({ slot: 'source', port: 'line-out' }, { slot: 'amp', port: 'in-cd' });
           if (rack.speakers) get().connect({ slot: 'amp', port: 'spk-a' }, { slot: 'speakers', port: 'terminals' });
-          get().setAmp({ power: true, input: 'CD', speakersA: true });
-          get().say('Wired: CD player → amp CD input → speakers. Amp switched on and set to CD.');
+          const input = amp.ports.find((p) => p.id === 'in-cd')?.inputName ?? amp.inputs[0];
+          get().setAmp({ power: true, input, speakersA: true });
+          get().say(`Wired: CD player → amp ${input} input → speakers. Amp switched on and set to ${input}.`);
         },
         applyPreset(id) {
           const p = PRESETS.find((x) => x.id === id);
           if (!p) return;
-          set({ rackIds: { ...p.rack }, connections: [], pending: null, enabled: true });
+          set({ rackIds: { ...p.rack }, connections: [], pending: null, enabled: true, bypass: false, intensity: 1 });
           const rack = rackOf(p.rack);
           const conns: Connection[] = [];
           for (const [a, b] of p.wires) {

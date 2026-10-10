@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -45,11 +45,16 @@ export function Knob3D({
 }: Knob3DProps) {
   const body = useRef<THREE.Group>(null);
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
-  const drag = useRef<{ x: number; y: number; v: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; v: number; controlsEnabled?: boolean } | null>(null);
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const t = (value - min) / (max - min);
   const angle = sweep / 2 - t * sweep;
+  useEffect(() => () => {
+    if (drag.current && controls) controls.enabled = drag.current.controlsEnabled ?? true;
+    if (drag.current) document.body.style.cursor = '';
+    drag.current = null;
+  }, [controls]);
 
   useFrame((_, dt) => {
     // A touch of lag makes the knob feel weighted without feeling laggy.
@@ -61,7 +66,7 @@ export function Knob3D({
     if (disabled) return;
     e.stopPropagation();
     (e.target as Element | null)?.setPointerCapture?.(e.pointerId);
-    drag.current = { x: e.clientX, y: e.clientY, v: value };
+    drag.current = { x: e.clientX, y: e.clientY, v: value, controlsEnabled: controls?.enabled };
     if (controls) controls.enabled = false;
     setActive(true);
     document.body.style.cursor = 'grabbing';
@@ -75,8 +80,9 @@ export function Knob3D({
   const up = (e: ThreeEvent<PointerEvent>) => {
     if (!drag.current) return;
     e.stopPropagation();
+    if (controls) controls.enabled = drag.current.controlsEnabled ?? true;
     drag.current = null;
-    if (controls) controls.enabled = true;
+    (e.target as Element | null)?.releasePointerCapture?.(e.pointerId);
     setActive(false);
     document.body.style.cursor = hover ? 'grab' : '';
   };
@@ -89,6 +95,8 @@ export function Knob3D({
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
+        onPointerCancel={up}
+        onLostPointerCapture={up}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHover(true);
@@ -108,6 +116,11 @@ export function Knob3D({
           if (!disabled) onChange(defaultValue);
         }}
       >
+        {/* Continuous hit face catches the spaces between the model's small parts. */}
+        <mesh position={[0, 0, radius * 0.58]}>
+          <circleGeometry args={[radius * 1.15, 32]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
         {/* shadow collar where the knob meets the panel */}
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.03]}>
           <cylinderGeometry args={[radius * 1.18, radius * 1.18, radius * 0.06, 48]} />
@@ -116,7 +129,7 @@ export function Knob3D({
         {/* knurled skirt */}
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.24]} castShadow>
           <cylinderGeometry args={[radius * 1.06, radius * 1.1, radius * 0.42, 64, 1, true]} />
-          <meshStandardMaterial color="#9c968c" metalness={0.85} roughness={0.42} bumpMap={knurlBump()} bumpScale={1.5} />
+          <meshStandardMaterial color="#9c968c" metalness={0.85} roughness={0.42} bumpMap={knurlBump()} bumpScale={0.004} />
         </mesh>
         {/* chamfered edge */}
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, radius * 0.5]} castShadow>

@@ -6,6 +6,9 @@ import { ampToneFilters, responseDb, scaleFilters } from '../dsp';
 import { readMeters, toDb } from '../meters';
 import { PROFILES } from '../catalog';
 import type { FilterSpec } from '../types';
+import { DEMO_ALBUM_ID } from '../../audio/demoAlbum';
+import { RotaryKnob } from './RotaryKnob';
+import { VUMeters } from './VUMeters';
 
 function Slider({
   label,
@@ -113,7 +116,7 @@ function Meters() {
   const Bar = ({ db, label }: { db: number; label: string }) => (
     <div className="flex items-center gap-2">
       <span className="w-8 text-[10px] text-muted">{label}</span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+      <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-2">
         <div className={`h-full rounded-full ${db > -3 ? 'bg-[#b5523b]' : 'bg-accent'}`} style={{ width: `${((db + 60) / 60) * 100}%`, transition: 'width 60ms linear' }} />
       </div>
       <span className="w-12 text-right font-mono text-[10px] text-muted">{db <= -59 ? '−∞' : `${db.toFixed(0)} dB`}</span>
@@ -134,6 +137,7 @@ export function Inspector() {
   const playerVolume = usePlayer((s) => s.settings.volume);
   const setPlayerVolume = usePlayer((s) => s.setVolume);
   const insertedSource = usePlayer((s) => s.findAlbum(s.insertedAlbumId)?.source);
+  const playerState = usePlayer((s) => s.state);
   const rack = rackOf(h.rackIds);
   const amp = rack.amp;
   const ampState = currentAmpState(h);
@@ -149,6 +153,24 @@ export function Inspector() {
 
   return (
     <div className="space-y-4 px-5 pb-8 pt-4 text-sm">
+      <details className="space-y-3 rounded-2xl border border-line bg-surface/70 p-4">
+        <summary className="min-h-7 cursor-pointer text-sm font-medium">Hear the difference · comparison demo</summary>
+        <p className="text-xs text-ink-soft">Switch systems while the same track plays. Listen for deep bass, crisp percussion, and stereo separation.</p>
+        <button type="button" disabled={['LOADING', 'EJECTING'].includes(playerState)}
+          className="min-h-11 w-full rounded-xl bg-ink px-3 text-xs font-medium text-bg disabled:opacity-40"
+          onClick={() => void (async () => {
+            h.applyPreset('living-room');
+            await usePlayer.getState().insertDisc(DEMO_ALBUM_ID);
+            await usePlayer.getState().play();
+          })()}>Play comparison demo</button>
+        <div role="group" aria-label="Compare sound systems" className="flex flex-wrap gap-2">
+          {([['living-room', 'Full-range'], ['budget-dorm', 'Small speakers'], ['bedroom-boombox', 'Boombox']] as const).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => h.applyPreset(id)} className="min-h-11 flex-1 rounded-xl border border-line px-3 text-xs font-medium hover:bg-surface-2">{label}</button>
+          ))}
+        </div>
+        <Toggle label={h.bypass ? 'Original sound' : 'System sound'} on={!h.bypass} onChange={(on) => h.setLab({ bypass: !on })} />
+        <p className="text-[11px] text-muted">{spotify ? 'Spotify: only volume changes. Play the demo above to hear the equipment effects.' : 'Equipment profiles affect demo and imported audio. Presets enable the full effect.'}</p>
+      </details>
       {/* Route status */}
       <section aria-live="polite" className={`rounded-2xl border p-4 ${out.kind === 'silent' ? 'border-amber/60 bg-amber/10' : 'border-line bg-surface/70'}`}>
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{out.kind === 'silent' ? 'Silent' : 'You’re hearing'}</p>
@@ -174,7 +196,7 @@ export function Inspector() {
           <h3 id="src-h" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
             {rack.source.displayName}
           </h3>
-          <Slider
+          {rack.source.hasVolumeKnob ? <Slider
             label={route.sourceVolumeApplies ? 'Volume' : 'Volume (headphone jack only — line out is fixed)'}
             value={srcVol}
             min={0}
@@ -182,7 +204,7 @@ export function Inspector() {
             step={0.01}
             display={`${Math.round(srcVol * 100)}%`}
             onChange={setSrcVol}
-          />
+          /> : <p className="text-xs text-muted">Fixed-level RCA output. Adjust listening volume on the amplifier.</p>}
         </section>
       )}
 
@@ -202,6 +224,7 @@ export function Inspector() {
             <Toggle label="Loudness" on={ampState.loudness} onChange={(v) => set({ loudness: v })} hint="Lifts bass and treble more at low volume" />
             <Toggle label="Speakers A" on={ampState.speakersA} onChange={(v) => set({ speakersA: v })} />
           </div>
+          <VUMeters />
           <div role="radiogroup" aria-label="Input selector" className="flex gap-1.5">
             {amp.inputs.map((i) => (
               <button
@@ -216,10 +239,13 @@ export function Inspector() {
               </button>
             ))}
           </div>
-          <Slider label="Volume" value={ampState.volume} min={0} max={1} step={0.01} display={`${(ampState.volume * 10).toFixed(1)} / 10`} onChange={(v) => set({ volume: v })} />
-          <Slider label="Bass" value={ampState.bass} min={-1} max={1} step={0.05} display={`${ampState.bass >= 0 ? '+' : ''}${Math.round(ampState.bass * 12)} dB @ ${amp.bassHz} Hz`} onChange={(v) => set({ bass: v })} />
-          <Slider label="Treble" value={ampState.treble} min={-1} max={1} step={0.05} display={`${ampState.treble >= 0 ? '+' : ''}${Math.round(ampState.treble * 12)} dB @ ${amp.trebleHz / 1000} kHz`} onChange={(v) => set({ treble: v })} />
-          <Slider
+          <p className="text-[11px] text-muted">Drag a knob up or right to turn it. Arrow keys adjust; double-click resets.</p>
+          <div className="grid grid-cols-2 gap-3">
+          <RotaryKnob label="Volume" defaultValue={0.4} value={ampState.volume} min={0} max={1} step={0.01} display={`${(ampState.volume * 10).toFixed(1)} / 10`} onChange={(v) => set({ volume: v })} />
+          <RotaryKnob label="Bass" defaultValue={0} value={ampState.bass} min={-1} max={1} step={0.05} display={`${ampState.bass >= 0 ? '+' : ''}${Math.round(ampState.bass * 12)} dB`} onChange={(v) => set({ bass: v })} />
+          <RotaryKnob label="Treble" defaultValue={0} value={ampState.treble} min={-1} max={1} step={0.05} display={`${ampState.treble >= 0 ? '+' : ''}${Math.round(ampState.treble * 12)} dB`} onChange={(v) => set({ treble: v })} />
+          <RotaryKnob
+            defaultValue={0}
             label="Balance"
             value={ampState.balance}
             min={-1}
@@ -228,6 +254,7 @@ export function Inspector() {
             display={Math.abs(ampState.balance) < 0.02 ? 'centre' : ampState.balance < 0 ? `L ${Math.round(-ampState.balance * 100)}%` : `R ${Math.round(ampState.balance * 100)}%`}
             onChange={(v) => set({ balance: v })}
           />
+          </div>
           {!route.throughAmp && route.output.kind !== 'silent' && <p className="text-[11px] text-muted">The amp isn’t in the current signal path, so these controls don’t affect what you hear right now.</p>}
         </section>
       )}

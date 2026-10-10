@@ -1,4 +1,5 @@
 import type { AmpDevice, AmpState, Device, OutputDevice, OutputProfile, SourceDevice } from './types';
+import { VINTAGE_AMPS, VINTAGE_PROFILES, VINTAGE_SOURCES, VINTAGE_SPEAKERS } from './vintage.ts';
 
 /*
  * HardwareCatalog — Phase 1.
@@ -9,6 +10,7 @@ import type { AmpDevice, AmpState, Device, OutputDevice, OutputProfile, SourceDe
  */
 
 export const SOURCES: SourceDevice[] = [
+  ...VINTAGE_SOURCES,
   {
     id: 'dd1',
     slot: 'source',
@@ -66,6 +68,8 @@ export const AMPS: AmpDevice[] = [
   },
 ];
 
+AMPS.push(...VINTAGE_AMPS);
+
 export const SPEAKERS: OutputDevice[] = [
   {
     id: 'bookshelf-premium',
@@ -90,6 +94,8 @@ export const SPEAKERS: OutputDevice[] = [
     profileId: 'mini-cheap',
   },
 ];
+
+SPEAKERS.push(...VINTAGE_SPEAKERS);
 
 export const HEADPHONES: OutputDevice[] = [
   {
@@ -119,6 +125,7 @@ export const HEADPHONES: OutputDevice[] = [
 const CREATIVE = (notes: string) => ({ grade: 'creative' as const, notes });
 
 export const PROFILES: Record<string, OutputProfile> = {
+  ...VINTAGE_PROFILES,
   'bookshelf-premium': {
     id: 'bookshelf-premium',
     kind: 'speaker',
@@ -142,17 +149,17 @@ export const PROFILES: Record<string, OutputProfile> = {
     kind: 'speaker',
     displayName: 'Budget mini speakers',
     filters: [
-      { type: 'highpass', freq: 120, q: 1.1 },
-      { type: 'peaking', freq: 190, q: 1.4, gain: 4 },
-      { type: 'peaking', freq: 3200, q: 2, gain: 3 },
-      { type: 'lowpass', freq: 9500, q: 0.8 },
+      { type: 'highpass', freq: 160, q: 0 },
+      { type: 'peaking', freq: 400, q: 0.8, gain: 5 },
+      { type: 'peaking', freq: 2800, q: 0.9, gain: 5 },
+      { type: 'lowpass', freq: 6000, q: 0 },
     ],
     distortion: 0.25,
     stereoWidth: 0.85,
     channelMismatchDb: 0.6,
     sensitivityDb: 1,
     isolation: 'Small cabinets: little real bass, boxy upper bass.',
-    traits: ['Bass rolls off below ~120 Hz', 'Boxy hump around 190 Hz', 'Honky upper mids', 'Dull top end', 'Compresses when pushed'],
+    traits: ['Bass rolls off below ~160 Hz', 'Boxy lower mids around 400 Hz', 'Honky upper mids', 'Dull top end above 6 kHz', 'Compresses when pushed'],
     evidence: CREATIVE('Illustrative category traits of small full-range plastic speakers. Not measured.'),
   },
   'boombox-builtin': {
@@ -160,17 +167,17 @@ export const PROFILES: Record<string, OutputProfile> = {
     kind: 'builtin',
     displayName: 'Boombox built-in speakers',
     filters: [
-      { type: 'highpass', freq: 150, q: 1.2 },
-      { type: 'peaking', freq: 230, q: 1.5, gain: 5 },
-      { type: 'peaking', freq: 1600, q: 1.2, gain: 2 },
-      { type: 'lowpass', freq: 7500, q: 0.9 },
+      { type: 'highpass', freq: 190, q: 0 },
+      { type: 'peaking', freq: 600, q: 0.9, gain: 6 },
+      { type: 'peaking', freq: 1600, q: 0.9, gain: 3 },
+      { type: 'lowpass', freq: 4200, q: 0 },
     ],
     distortion: 0.6,
-    stereoWidth: 0.45,
+    stereoWidth: 0.2,
     channelMismatchDb: 0.3,
     sensitivityDb: 0,
     isolation: 'Drivers sit inches apart: narrow stereo image.',
-    traits: ['Enclosure resonance around 230 Hz', 'No deep bass', 'Narrow stereo', 'Squashes and distorts at high volume'],
+    traits: ['Enclosure resonance around 600 Hz', 'No deep bass', 'Muffled highs above 4.2 kHz', 'Almost mono stereo', 'Squashes and distorts at high volume'],
     evidence: CREATIVE('Illustrative boombox enclosure behaviour. Not measured.'),
   },
   'studio-closed': {

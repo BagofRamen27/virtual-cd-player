@@ -1,4 +1,5 @@
 import type { DspParams } from './dsp';
+import { signalLevels } from './dsp.ts';
 import type { FilterSpec } from './types';
 
 const SMOOTH = 0.025; // seconds — fast enough to feel immediate, slow enough to avoid zipper noise
@@ -10,6 +11,8 @@ export interface MeterReading {
   inR: number;
   outL: number;
   outR: number;
+  outRmsL: number;
+  outRmsR: number;
   /** True if any output sample reached ≥ 0.98 since the last read. */
   clip: boolean;
 }
@@ -50,6 +53,7 @@ export class HifiChain {
   private outR: AnalyserNode;
   private buf = new Float32Array(1024);
   private lastTypes = '';
+  private profileTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
@@ -174,6 +178,9 @@ export class HifiChain {
   }
 
   apply(p: DspParams) {
+    // A newer selection must win over a deferred gear change (including bypass).
+    if (this.profileTimer !== null) clearTimeout(this.profileTimer);
+    this.profileTimer = null;
     const types = p.profileFilters.map((f) => f.type).join(',');
     const swapping = types !== this.lastTypes && this.lastTypes !== '';
     this.lastTypes = types;
@@ -199,23 +206,25 @@ export class HifiChain {
     if (swapping && !p.bypass) {
       // Changing filter types abruptly can click: duck the wet path, retune, bring it back.
       this.set(this.wet.gain, 0);
-      setTimeout(commitProfile, 90);
+      this.profileTimer = setTimeout(() => {
+        this.profileTimer = null;
+        commitProfile();
+      }, 90);
     } else {
       commitProfile();
     }
   }
 
-  private peak(a: AnalyserNode): number {
+  private levels(a: AnalyserNode) {
     a.getFloatTimeDomainData(this.buf);
-    let m = 0;
-    for (let i = 0; i < this.buf.length; i++) m = Math.max(m, Math.abs(this.buf[i]));
-    return m;
+    return signalLevels(this.buf);
   }
 
   readMeters(): MeterReading {
-    const outL = this.peak(this.outL);
-    const outR = this.peak(this.outR);
-    return { inL: this.peak(this.inL), inR: this.peak(this.inR), outL, outR, clip: Math.max(outL, outR) >= 0.98 };
+    const left = this.levels(this.outL);
+    const right = this.levels(this.outR);
+    return { inL: this.levels(this.inL).peak, inR: this.levels(this.inR).peak, outL: left.peak, outR: right.peak,
+      outRmsL: left.rms, outRmsR: right.rms, clip: Math.max(left.peak, right.peak) >= 0.98 };
   }
 }
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AMPS, HEADPHONES, PROFILES, SOURCES, SPEAKERS, defaultAmpState } from '../src/hifi/catalog.ts';
 import { makeConnection, pruneConnections, resolveRoute, validateConnection, validatePorts, type Rack } from '../src/hifi/routing.ts';
-import { balanceGains, biquadMagnitudeDb, computeDspParams, loudnessBoost, profileLoudnessDb, responseDb, scaleFilters, volumeTaper } from '../src/hifi/dsp.ts';
+import { balanceGains, biquadMagnitudeDb, computeDspParams, loudnessBoost, profileLoudnessDb, responseDb, scaleFilters, volumeTaper, signalLevels } from '../src/hifi/dsp.ts';
 import type { Connection, Slot } from '../src/hifi/types.ts';
 
 const dd1 = SOURCES.find((s) => s.id === 'dd1')!;
@@ -160,4 +160,39 @@ test('level matching compensates each profile to about the same loudness', () =>
 test('silent route produces zero gain', () => {
   const p = computeDspParams({ route: { output: { kind: 'silent', reason: 'x' }, throughAmp: false, sourceVolumeApplies: false, chain: [] }, sourceVolume: 1, settings: { bypass: false, levelMatch: true, intensity: 1 } });
   assert.equal(p.routeGain * p.sourceGain, 0);
+});
+
+test('level-matched budget systems retain clearly different bass and treble', () => {
+  const premium = PROFILES['bookshelf-premium'].filters;
+  const relative = (filters: typeof premium, hz: number) => responseDb(filters, hz) - profileLoudnessDb(filters);
+  for (const id of ['mini-cheap', 'boombox-builtin']) {
+    const budget = PROFILES[id].filters;
+    assert.ok(relative(premium, 60) - relative(budget, 60) > 12, `${id}: bass contrast`);
+    assert.ok(relative(premium, 10000) - relative(budget, 10000) > 8, `${id}: treble contrast`);
+    assert.ok(Number.isFinite(profileLoudnessDb(budget)));
+  }
+});
+
+test('vintage RCA decks connect to every vintage amplifier AUX input', () => {
+  for (const source of SOURCES.filter((d) => d.category === 'deck')) {
+    for (const vintageAmp of AMPS.filter((d) => d.referenceUrl)) {
+      for (const speakers of SPEAKERS.filter((d) => d.referenceUrl)) {
+        const r = rack({ source, amp: vintageAmp, speakers });
+        const conns = wire(r, wire(r, [], ['source', 'line-out'], ['amp', 'in-cd']), ['amp', 'spk-a'], ['speakers', 'terminals']);
+        assert.equal(conns[0].cable, 'rca');
+        const route = resolveRoute(true, r, conns, { ...defaultAmpState(vintageAmp), power: true, input: 'AUX' });
+        assert.equal(route.output.kind, 'speakers');
+        assert.equal(route.sourceVolumeApplies, false);
+        assert.ok(PROFILES[speakers.profileId]);
+      }
+    }
+  }
+});
+
+test('VU measurement separates RMS from peaks and reports silence truthfully', () => {
+  assert.deepEqual(signalLevels(new Float32Array(128)), { peak: 0, rms: 0 });
+  const wave = Float32Array.from({ length: 1024 }, (_, i) => 0.5 * Math.sin(2 * Math.PI * i / 64));
+  const levels = signalLevels(wave);
+  assert.ok(Math.abs(levels.peak - 0.5) < 1e-6);
+  assert.ok(Math.abs(levels.rms - 0.5 / Math.sqrt(2)) < 1e-6);
 });

@@ -109,7 +109,7 @@ export function Boombox3D({ builtinsActive }: { builtinsActive: boolean }) {
     <group position={[0, h / 2 + 0.02, 0]}>
       {/* Two-piece moulded shell: matte polymer with a visible parting line */}
       <RoundedBox args={[w, h, d]} radius={0.12} smoothness={4} castShadow receiveShadow>
-        <meshStandardMaterial color="#34312e" roughness={0.62} metalness={0.08} bumpMap={plasticBump()} bumpScale={0.8} />
+        <meshStandardMaterial color="#34312e" roughness={0.62} metalness={0.08} bumpMap={plasticBump()} bumpScale={0.002} />
       </RoundedBox>
       <mesh position={[0, 0, -0.02]}>
         <boxGeometry args={[w + 0.004, h - 0.18, 0.006]} />
@@ -155,7 +155,7 @@ export function Boombox3D({ builtinsActive }: { builtinsActive: boolean }) {
       </mesh>
       <mesh position={[0, top + 0.82, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.045, 0.045, 0.6, 24]} />
-        <meshStandardMaterial color="#1c1a18" roughness={0.9} bumpMap={plasticBump()} bumpScale={1.5} />
+        <meshStandardMaterial color="#1c1a18" roughness={0.9} bumpMap={plasticBump()} bumpScale={0.002} />
       </mesh>
       {[-0.72, 0.72].map((x) => (
         <mesh key={x} position={[x, top + 0.06, 0]}>
