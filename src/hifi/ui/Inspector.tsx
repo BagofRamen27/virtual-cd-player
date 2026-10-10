@@ -29,12 +29,12 @@ function Slider({
   const fill = `${((value - min) / (max - min)) * 100}%`;
   return (
     <label className={`block ${disabled ? 'opacity-50' : ''}`}>
-      <span className="flex justify-between text-xs text-ink-soft">
+      <span className="flex justify-between gap-2 text-xs text-ink-soft">
         {label} <span className="font-mono text-[11px] text-muted">{display}</span>
       </span>
       <input
         type="range"
-        className="dd-range"
+        className="dd-range min-h-11"
         style={{ ['--fill' as string]: fill }}
         min={min}
         max={max}
@@ -56,7 +56,7 @@ function Toggle({ label, on, onChange, hint }: { label: string; on: boolean; onC
       aria-checked={on}
       onClick={() => onChange(!on)}
       title={hint}
-      className={`h-8 rounded-full px-3 text-xs font-medium transition-colors ${on ? 'bg-ink text-bg' : 'bg-surface-2/70 text-ink-soft hover:bg-surface-2'}`}
+      className={`min-h-11 rounded-full px-3 text-xs font-medium transition-colors ${on ? 'bg-ink text-bg' : 'bg-surface-2/70 text-ink-soft hover:bg-surface-2'}`}
     >
       {label}
     </button>
@@ -210,7 +210,7 @@ export function Inspector() {
                 role="radio"
                 aria-checked={ampState.input === i}
                 onClick={() => set({ input: i })}
-                className={`h-8 flex-1 rounded-lg text-xs font-medium ${ampState.input === i ? 'bg-ink text-bg' : 'bg-surface-2/60 text-ink-soft hover:bg-surface-2'}`}
+                className={`min-h-11 flex-1 rounded-lg text-xs font-medium ${ampState.input === i ? 'bg-ink text-bg' : 'bg-surface-2/60 text-ink-soft hover:bg-surface-2'}`}
               >
                 {i}
               </button>

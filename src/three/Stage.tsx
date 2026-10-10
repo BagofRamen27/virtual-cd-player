@@ -1,7 +1,7 @@
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, type ComponentRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+type OrbitControlsImpl = ComponentRef<typeof OrbitControls>;
 import * as THREE from 'three';
 import { usePlayer } from '../state/store';
 import { CDPlayer3D } from './CDPlayer3D';
