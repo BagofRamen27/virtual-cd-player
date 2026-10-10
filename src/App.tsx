@@ -10,6 +10,8 @@ import { NoticeToast } from './components/NoticeToast';
 import { useMediaQuery } from './lib/useMediaQuery';
 import { useHifi } from './hifi/store';
 import { startHifiBridge } from './hifi/bridge';
+import { audioEngine } from './audio/AudioEngine';
+import { prewarmDemo } from './audio/demoAlbum';
 import { RackView } from './hifi/ui/RackView';
 
 function isTyping(el: EventTarget | null): boolean {
@@ -56,6 +58,18 @@ export default function App() {
   useEffect(() => {
     void usePlayer.getState().init();
     startHifiBridge();
+    prewarmDemo();
+    // Unlock audio on the first real interaction (required on phones, harmless elsewhere).
+    const unlock = () => audioEngine.unlock();
+    const opts = { capture: true, passive: true } as const;
+    window.addEventListener('pointerdown', unlock, opts);
+    window.addEventListener('touchend', unlock, opts);
+    window.addEventListener('keydown', unlock, opts);
+    return () => {
+      window.removeEventListener('pointerdown', unlock, opts);
+      window.removeEventListener('touchend', unlock, opts);
+      window.removeEventListener('keydown', unlock, opts);
+    };
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

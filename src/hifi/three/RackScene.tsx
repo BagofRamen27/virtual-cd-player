@@ -1,8 +1,10 @@
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
 import { Bloom, EffectComposer, N8AO, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import { AdaptiveQuality } from '../../three/AdaptiveQuality';
+import { CompileGate } from '../../three/CompileGate';
 import { usePlayer } from '../../state/store';
 import { CDPlayer3D } from '../../three/CDPlayer3D';
 import { WarmEnvironment } from '../../three/WarmEnvironment';
@@ -168,6 +170,7 @@ function DevProbe() {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
     if (!import.meta.env.DEV) return;
+    (window as unknown as { __rackGl: unknown }).__rackGl = gl;
     (window as unknown as { __rackProject: unknown }).__rackProject = (x: number, y: number, z: number) => {
       const v = new THREE.Vector3(x, y, z).project(camera);
       const r = gl.domElement.getBoundingClientRect();
@@ -188,14 +191,21 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
   const high = quality === 'high';
   const look = SPEAKER_LOOKS[h.rackIds.speakers ?? ''];
 
+  const [ready, setReady] = useState(false);
+  const onReady = useCallback(() => setReady(true), []);
+
   return (
+    <>
     <Canvas
+      frameloop="never"
       shadows={high ? 'percentage' : false}
       dpr={high ? [1, 2] : 1}
       camera={{ position: [0, 2.7, 7.9], fov: 40, near: 0.1, far: 80 }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dark ? 1.15 : 1.1 }}
       aria-hidden="true"
     >
+      <AdaptiveQuality />
+      <CompileGate onReady={onReady} />
       <fog attach="fog" args={[dark ? '#1b1613' : '#eadfce', 16, 34]} />
       {/* Ambient bounce: warm sky from the window, brown bounce from the wooden floor and furniture */}
       <hemisphereLight args={['#e7edf1', '#635b50', dark ? 0.75 : 0.85]} />
@@ -270,5 +280,11 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
         </EffectComposer>
       )}
     </Canvas>
+    {!ready && (
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted">
+        Setting up the room…
+      </div>
+    )}
+    </>
   );
 }

@@ -3,6 +3,8 @@ import { Canvas } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 type OrbitControlsImpl = ComponentRef<typeof OrbitControls>;
 import * as THREE from 'three';
+import { AdaptiveQuality } from './AdaptiveQuality';
+import { CompileGate } from './CompileGate';
 import { usePlayer } from '../state/store';
 import { CDPlayer3D } from './CDPlayer3D';
 import { WarmEnvironment } from './WarmEnvironment';
@@ -25,12 +27,15 @@ export default function Stage() {
 
   return (
     <Canvas
+      frameloop="never"
       shadows={high ? 'percentage' : false}
       dpr={high ? [1, 2] : 1}
       camera={{ position: narrow ? [0, 3.7, 4.3] : [0, 4.4, 5.2], fov: 34, near: 0.1, far: 60 }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: theme === 'dark' ? 0.95 : 1.05 }}
       aria-hidden="true"
     >
+      <AdaptiveQuality />
+      <CompileGate />
       <fog attach="fog" args={[floor, 9, 20]} />
       <ambientLight intensity={theme === 'dark' ? 0.25 : 0.4} color="#ffe6cc" />
       {/* Key: low golden-hour sun from the left window */}

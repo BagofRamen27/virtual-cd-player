@@ -29,7 +29,7 @@ export function TransportControls({ compact = false }: { compact?: boolean }) {
         className={`${btn} ${compact ? 'h-12 w-12' : 'h-14 w-14'} border-transparent !bg-accent !text-ivory dark:!text-espresso ${playing ? 'ring-4 ring-amber/30' : ''}`}
         aria-label={playing ? 'Pause' : 'Play'}
         onClick={() => void a.togglePlay()}
-        disabled={busy}
+        disabled={state === 'EJECTING'}
       >
         <Icon name={playing ? 'pause' : 'play'} size={22} />
       </button>

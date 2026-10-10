@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useMemo, useRef, useState } from 'react';
 import { CoverUpload } from './CoverUpload';
 import { TrackMarkers } from './TrackMarkers';
 import { buildCueSheet } from '../lib/trackMarkers';
@@ -22,7 +22,14 @@ export function BurnCD() {
   const [message, setMessage] = useState(''), [burned, setBurned] = useState<Album | null>(null);
   const [cover, setCover] = useState<string>();
   const [splitId, setSplitId] = useState<string | null>(null);
-  const preview = useMemo(() => cover || generateCover(title.trim() || 'My mixtape', artist.trim(), tintFor(title + artist)), [cover, title, artist]);
+  // The dialog lives in the header, so only draw the preview while it's open, and let typing
+  // stay responsive by drawing from deferred values.
+  const dTitle = useDeferredValue(title);
+  const dArtist = useDeferredValue(artist);
+  const preview = useMemo(
+    () => (open ? cover || generateCover(dTitle.trim() || 'My mixtape', dArtist.trim(), tintFor(dTitle + dArtist)) : ''),
+    [open, cover, dTitle, dArtist],
+  );
   const input = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null);
   const duration = discSeconds(tracks.map(t => t.duration));
   const issue = validateDisc(title, tracks.map(t => t.duration), minutes);
@@ -51,7 +58,7 @@ export function BurnCD() {
     setBusy('Burning virtual disc…'); setMessage('');
     const id = `local-${crypto.randomUUID()}`, tint = tintFor(title + artist);
     const album: Album = { id, source: 'local', title: title.trim(), artist: artist.trim() || 'Various artists', tint,
-      coverUrl: preview, tracks: [], addedAt: Date.now() };
+      coverUrl: cover || generateCover(title.trim() || 'My mixtape', artist.trim(), tint), tracks: [], addedAt: Date.now() };
     try {
       await requestPersistence();
       const files = new Map<File, string>();

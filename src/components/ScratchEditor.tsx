@@ -112,7 +112,7 @@ function EditorBody({ album }: { album: Album }) {
           className="relative aspect-square w-full overflow-hidden rounded-2xl"
           style={{ background: 'var(--stage)', cursor: tool === 'rotate' ? 'grab' : 'crosshair', touchAction: 'none' }}
         >
-          <Canvas camera={{ position: [0, 2.9, 0.001], fov: 42 }} dpr={[1, 2]} aria-hidden="true">
+          <Canvas camera={{ position: [0, 2.9, 0.001], fov: 42 }} dpr={[1, 1.5]} aria-hidden="true">
             <ambientLight intensity={0.6} color="#ffe6cc" />
             <directionalLight position={[-2, 4, 2]} intensity={1.6} color="#ffd6a3" />
             <WarmEnvironment resolution={128} />

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { defaultQuality, graphicsInfo } from '../lib/webgl';
 import type { Album, ConditionLevel, DamageEventType, DamageProfile, PlayerState, ScratchStroke, Settings } from '../types';
 import { computeDamageEvents, newDamageProfile } from '../audio/damage';
 import { demoAlbum } from '../audio/demoAlbum';
@@ -35,8 +36,8 @@ export function canTransition(from: PlayerState, to: PlayerState): boolean {
 
 const DEFAULT_SETTINGS: Settings = {
   theme: typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
-  quality: 'high',
-  force2D: false,
+  // First visit: pick quality from the device (phones / no GPU acceleration get the light path).
+  ...defaultQuality(),
   sounds: false,
   volume: 0.8,
 };
@@ -112,6 +113,8 @@ let active: PlaybackAdapter | null = null;
 let pendingStop = false;
 let noticeId = 0;
 let initStarted = false;
+/** Play was pressed while the disc was still loading. */
+let playWhenReady = false;
 
 export const usePlayer = create<PlayerStore>((set, get) => {
   const go = (to: PlayerState): boolean => {
@@ -213,7 +216,9 @@ export const usePlayer = create<PlayerStore>((set, get) => {
         selectedAlbumId: demo.id,
         ready: true,
       });
-
+      if (!settings && get().settings.force2D && graphicsInfo().webgl) {
+        get().notify('This device has no graphics acceleration, so DiscDeck is using its lightweight 2D player. You can switch 3D on in Settings.');
+      }
     },
 
     notify(text, tone = 'info') {
@@ -273,7 +278,13 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       });
       try {
         await Promise.all([adapter.load(album, 0), seated]);
-        if (get().insertedAlbumId === albumId && get().state === 'LOADING') go('READY');
+        if (get().insertedAlbumId === albumId && get().state === 'LOADING') {
+          go('READY');
+          if (playWhenReady) {
+            playWhenReady = false;
+            void get().play();
+          }
+        }
       } catch (err) {
         await seated;
         if (get().insertedAlbumId === albumId) fail(err instanceof Error ? err.message : String(err));
@@ -281,6 +292,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     },
 
     async eject() {
+      playWhenReady = false;
       click();
       const { insertedAlbumId } = get();
       if (!insertedAlbumId) {
@@ -336,7 +348,12 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       const { insertedAlbumId, state } = get();
       if (!insertedAlbumId) return get().notify('No disc inserted. Choose a CD from the shelf and insert it — or drag it onto the player.');
       if (state === 'ERROR') return get().notify(get().errorMessage ?? 'This disc cannot be played.', 'error');
-      if (state === 'LOADING' || state === 'EJECTING' || state === 'PLAYING') return;
+      if (state === 'LOADING') {
+        // Slow devices can take a few seconds to prepare a disc: remember the press instead of ignoring it.
+        playWhenReady = true;
+        return get().notify('Reading the disc… it will start playing as soon as it’s ready.');
+      }
+      if (state === 'EJECTING' || state === 'PLAYING') return;
       set({ powered: true });
       if (get().lidOpen) {
         get().closeLid();
@@ -357,6 +374,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       else await get().play();
     },
     async stop() {
+      playWhenReady = false;
       click();
       const st = get().state;
       if (!['PLAYING', 'PAUSED', 'READY'].includes(st)) return;

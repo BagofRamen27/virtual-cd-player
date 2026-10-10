@@ -82,7 +82,43 @@ export function demoAlbum(): Album {
 
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-export async function renderDemoTrack(index: number, sampleRate: number): Promise<AudioBuffer> {
+const rendered = new Map<string, Promise<AudioBuffer>>();
+
+/** Rendered demo tracks are cached, so replays and pre-warmed tracks start instantly. */
+export function renderDemoTrack(index: number, sampleRate: number): Promise<AudioBuffer> {
+  const key = `${index}@${sampleRate}`;
+  let p = rendered.get(key);
+  if (!p) {
+    p = synthesize(index, sampleRate);
+    p.catch(() => rendered.delete(key));
+    rendered.set(key, p);
+  }
+  return p;
+}
+
+/**
+ * Render the first demo song in the background once the page is idle, at the sample rate this
+ * device's audio output will use, so "Insert → Play" on the demo disc is immediate even on
+ * slow phones.
+ */
+export function prewarmDemo(): void {
+  if (typeof window === 'undefined' || !('OfflineAudioContext' in window) || !('AudioContext' in window)) return;
+  const run = () => {
+    try {
+      const probe = new AudioContext();
+      const rate = probe.sampleRate;
+      void probe.close();
+      void renderDemoTrack(0, rate);
+    } catch {
+      /* best effort */
+    }
+  };
+  const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+  if (ric) ric(run, { timeout: 4000 });
+  else setTimeout(run, 2000);
+}
+
+async function synthesize(index: number, sampleRate: number): Promise<AudioBuffer> {
   const spec = SPECS[index];
   const ctx = new OfflineAudioContext(2, Math.ceil(spec.seconds * sampleRate), sampleRate);
   const rng = mulberry32(spec.seed);

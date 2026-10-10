@@ -77,7 +77,7 @@ export function PlayerStage() {
       </p>
 
       <div
-        className="relative min-h-0 flex-1"
+        className="relative min-h-0 flex-1 overflow-hidden"
         onDragOver={(e) => {
           if (e.dataTransfer.types.includes(DRAG_TYPE)) {
             e.preventDefault();

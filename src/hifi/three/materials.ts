@@ -10,6 +10,10 @@
  */
 import * as THREE from 'three';
 import { mulberry32 } from '../../audio/damage';
+import { usePlayer } from '../../state/store';
+
+/** Low quality (phones, low-power laptops) gets smaller generated textures. */
+const lite = () => usePlayer.getState().settings.quality === 'low';
 
 type Tex = THREE.CanvasTexture;
 const cache = new Map<string, Tex>();
@@ -158,7 +162,8 @@ export function knurlBump(): Tex {
 const WOOD_TONES = { walnut: ['#4a3324', '#5d4130', '#6e4d37', '#3b281c'], oak: ['#9a7a57', '#ab8a64', '#8c6c4b', '#b8976f'] };
 
 /** Flat-cut veneer with cathedral figure, flowing grain and pores. */
-export function woodColor(kind: 'walnut' | 'oak' = 'walnut', seed = 3, vertical = false, size = 512): Tex {
+export function woodColor(kind: 'walnut' | 'oak' = 'walnut', seed = 3, vertical = false, requested = 512): Tex {
+  const size = lite() ? Math.min(requested, 256) : requested;
   return make(`wood-${kind}-${seed}-${vertical}-${size}`, size, size, (g, w, h) => {
     const k = 1024 / w; // keep the figure the same scale at any resolution
     const rng = mulberry32(seed);
@@ -209,7 +214,8 @@ export function woodRoughness(seed = 3): Tex {
 }
 
 export function floorPlanks(): Tex {
-  return make('planks', 1024, 1024, (g, w, h) => {
+  const ps = lite() ? 512 : 1024;
+  return make(`planks-${ps}`, ps, ps, (g, w, h) => {
     const rng = mulberry32(21);
     const plankH = h / 8;
     const n = valueNoise(4, 90);
@@ -270,7 +276,7 @@ export function plasticBump(): Tex {
 
 /** Lime-plaster wall: soft blotches and fine trowel texture (colour). */
 export function plaster(dark: boolean): Tex {
-  return make(`plaster-${dark}`, 1024, 512, (g, w, h) => {
+  return make(`plaster-${dark}-${lite()}`, lite() ? 512 : 1024, lite() ? 256 : 512, (g, w, h) => {
     const n = valueNoise(13, 120);
     const n2 = valueNoise(31, 18);
     const img = g.createImageData(w, h);

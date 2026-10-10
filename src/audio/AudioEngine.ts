@@ -30,10 +30,42 @@ export class AudioEngine {
     return typeof window !== 'undefined' && 'AudioContext' in window && 'AudioWorkletNode' in window;
   }
 
+  /**
+   * Must run synchronously inside a user gesture (tap/click/key). Mobile browsers — iOS
+   * Safari especially — only let audio start if the AudioContext is created/resumed during
+   * the gesture itself, not after an `await`. Also asks iOS to treat this as media playback
+   * so the ringer/silent switch doesn't mute it.
+   */
+  unlock(): void {
+    try {
+      const nav = navigator as Navigator & { audioSession?: { type: string } };
+      if (nav.audioSession) nav.audioSession.type = 'playback';
+    } catch {
+      /* not supported */
+    }
+    if (!AudioEngine.isSupported()) return;
+    this.pendingCtx ??= this.ctx ?? new AudioContext({ latencyHint: 'playback' });
+    const ctx = this.pendingCtx;
+    if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
+    // A one-sample silent buffer fully wakes the output on older iOS versions.
+    try {
+      const b = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.connect(ctx.destination);
+      src.start();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private pendingCtx: AudioContext | null = null;
+
   async ensure(): Promise<AudioContext> {
     if (!this.starting) {
       this.starting = (async () => {
-        const ctx = new AudioContext({ latencyHint: 'playback' });
+        const ctx = this.pendingCtx ?? new AudioContext({ latencyHint: 'playback' });
+        this.pendingCtx = ctx;
         await ctx.audioWorklet.addModule(workletUrl);
         const node = new AudioWorkletNode(ctx, 'discdeck-scratch', {
           numberOfInputs: 0,

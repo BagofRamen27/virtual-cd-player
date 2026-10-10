@@ -7,10 +7,42 @@ export function tintFor(key: string): string {
 }
 
 /** Original generated cover art for albums without artwork (local uploads, demo). */
-export function generateCover(title: string, artist: string, tint: string, size = 600): string {
+const coverCache = new Map<string, string>();
+let grainTile: HTMLCanvasElement | null = null;
+
+/** A small reusable noise tile; drawing it as a pattern is ~50× cheaper than per-pixel noise. */
+function grain(): HTMLCanvasElement {
+  if (grainTile) return grainTile;
+  const t = document.createElement('canvas');
+  t.width = t.height = 128;
+  const g = t.getContext('2d')!;
+  const img = g.createImageData(128, 128);
+  const rng = mulberry32(99);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = rng() * 255;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return (grainTile = t);
+}
+
+export function generateCover(title: string, artist: string, tint: string, size = 480): string {
+  const key = `${title}\u0000${artist}\u0000${tint}\u0000${size}`;
+  const hit = coverCache.get(key);
+  if (hit) return hit;
+  const url = drawCover(title, artist, tint, size);
+  if (coverCache.size > 40) coverCache.clear();
+  coverCache.set(key, url);
+  return url;
+}
+
+function drawCover(title: string, artist: string, tint: string, size: number): string {
   const c = document.createElement('canvas');
   c.width = c.height = size;
-  const g = c.getContext('2d')!;
+  // CPU-backed canvas: we read the result back as a data URL, which is very slow through a
+  // GPU (or software-emulated GPU) canvas.
+  const g = c.getContext('2d', { willReadFrequently: true })!;
   const rng = mulberry32(hashString(title + artist));
 
   const bg = g.createLinearGradient(0, 0, size, size);
@@ -54,14 +86,12 @@ export function generateCover(title: string, artist: string, tint: string, size 
   g.fillText(artist.toUpperCase(), size * 0.08, size * 0.94);
 
   // Grain
-  const img = g.getImageData(0, 0, size, size);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const n = (rng() - 0.5) * 14;
-    img.data[i] += n;
-    img.data[i + 1] += n;
-    img.data[i + 2] += n;
-  }
-  g.putImageData(img, 0, 0);
+  g.globalAlpha = 0.06;
+  g.globalCompositeOperation = 'overlay';
+  g.fillStyle = g.createPattern(grain(), 'repeat')!;
+  g.fillRect(0, 0, size, size);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = 'source-over';
   return c.toDataURL('image/jpeg', 0.86);
 }
 

@@ -29,8 +29,12 @@ export function Player2D() {
   }, [glitchAt]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 p-6">
-      <div className="relative aspect-square w-[min(78vw,340px)] rounded-[28px] bg-gradient-to-b from-[#f1e8db] to-[#e2d5c2] p-[7%] shadow-[0_30px_60px_-25px_rgba(37,31,27,0.55),inset_0_1px_0_rgba(255,255,255,0.7)]">
+    <div className="flex h-full flex-col items-center justify-center gap-4 overflow-hidden p-4" style={{ containerType: 'size' }}>
+      <div
+        className="relative aspect-square shrink-0 rounded-[28px]"
+        style={{ width: 'min(78vw, 340px, calc(100cqh - 6.5rem))', minWidth: 120 }}
+      >
+      <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-[#f1e8db] to-[#e2d5c2] p-[7%] shadow-[0_30px_60px_-25px_rgba(37,31,27,0.55),inset_0_1px_0_rgba(255,255,255,0.7)]">
         <div className="relative h-full w-full rounded-full bg-[#2a231f] shadow-[inset_0_4px_14px_rgba(0,0,0,0.5)]">
           {album && phase !== 'none' && (
             <div
@@ -53,6 +57,7 @@ export function Player2D() {
           aria-label={lidOpen ? 'Close lid' : 'Open lid'}
           className={`absolute inset-[4%] rounded-[24px] border border-white/20 bg-[#4a3a30]/35 backdrop-blur-[1px] transition-all duration-500 ${lidOpen ? '-translate-y-[55%] opacity-25' : ''}`}
         />
+      </div>
       </div>
       <LCDDisplay />
     </div>
