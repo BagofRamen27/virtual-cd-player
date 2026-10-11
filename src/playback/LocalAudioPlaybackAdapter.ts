@@ -70,6 +70,7 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
     await audioEngine.ensure();
     if (album.source === 'demo') return renderDemoTrack(i, audioEngine.sampleRate);
     const key = album.tracks[i]?.fileKey;
+    if (key && this.decodedFile?.key === key) return this.decodedFile.buffer;
     const blob = key ? await store.loadAudio(key) : undefined;
     if (!blob) {
       throw new Error(
@@ -80,16 +81,13 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
     }
     try {
       const track = album.tracks[i];
-      const cached = this.decodedFile;
-      const buffer = cached && cached.key === key ? cached.buffer : await audioEngine.decode(await blob.arrayBuffer());
+      const buffer = await audioEngine.decode(await blob.arrayBuffer());
       // Keep only one whole-album decode so skipping songs doesn't decode it repeatedly.
-      if (this.album === album) this.decodedFile = track.startOffset === undefined ? null : { key: key!, buffer };
-      if (track.startOffset === undefined) return buffer;
-      const { from, to } = segmentFrames(track.startOffset, track.duration, buffer.sampleRate, buffer.length);
-      const context = await audioEngine.ensure();
-      const song = context.createBuffer(buffer.numberOfChannels, to - from, buffer.sampleRate);
-      for (let channel = 0; channel < buffer.numberOfChannels; channel++) song.copyToChannel(buffer.getChannelData(channel).subarray(from, to), channel);
-      return song;
+      if (this.album === album) {
+        this.decodedFile = track.startOffset === undefined ? null : { key: key!, buffer };
+        audioEngine.setCachedBytes(this.decodedFile ? buffer.length * buffer.numberOfChannels * 4 : 0);
+      }
+      return buffer;
     } catch {
       throw new Error(`“${album.tracks[i].title}” could not be decoded by this browser.`);
     }
@@ -101,9 +99,11 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
     this.loaded = false;
     const buffer = await this.decodeTrack(this.album, i);
     if (token !== this.token || !this.album) return;
-    await audioEngine.loadBuffer(buffer);
+    const track = this.album.tracks[i];
+    const { from, to } = track.startOffset === undefined ? { from: 0, to: buffer.length } : segmentFrames(track.startOffset, track.duration, buffer.sampleRate, buffer.length);
+    await audioEngine.loadBuffer(buffer, from, to);
     this.index = i;
-    this.duration = buffer.duration;
+    this.duration = (to - from) / buffer.sampleRate;
     this.position = 0;
     this.loaded = true;
     audioEngine.setEvents(eventsForTrack(this.damage, this.durations(), i));
@@ -113,6 +113,7 @@ export class LocalAudioPlaybackAdapter implements PlaybackAdapter {
   async load(album: Album, trackIndex: number) {
     if (!AudioEngine.isSupported()) throw new Error('This browser does not support the Web Audio features DiscDeck needs.');
     this.decodedFile = null;
+    audioEngine.setCachedBytes(0);
     this.album = album;
     this.playing = false;
     await this.loadTrack(trackIndex);

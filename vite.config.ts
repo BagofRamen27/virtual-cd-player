@@ -4,16 +4,19 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // Spotify redirect URIs must use a loopback IP literal, so serve on 127.0.0.1.
+  // Keep development and preview on a loopback interface.
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
   preview: { host: '127.0.0.1', port: 4173 },
   build: {
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          three: ['three'],
-          r3f: ['@react-three/fiber', '@react-three/drei'],
+        onlyExplicitManualChunks: true,
+        manualChunks(id) {
+          const path = id.replaceAll('\\', '/');
+          if (/\/node_modules\/(react|react-dom|scheduler)\//.test(path)) return 'react';
+          if (path.includes('/node_modules/three/')) return 'three';
+          if (path.includes('/node_modules/@react-three/')) return 'r3f';
         },
       },
     },

@@ -1,11 +1,10 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { usePlayer } from './state/store';
 import { TopNav } from './components/TopNav';
 import { Shelf } from './components/Shelf';
 import { PlayerStage } from './components/PlayerStage';
 import { NowPlaying } from './components/NowPlaying';
 import { SettingsDialog } from './components/SettingsDialog';
-import { ScratchEditor } from './components/ScratchEditor';
 import { NoticeToast } from './components/NoticeToast';
 import { useMediaQuery } from './lib/useMediaQuery';
 import { useHifi } from './hifi/store';
@@ -13,6 +12,7 @@ import { startHifiBridge } from './hifi/bridge';
 import { audioEngine } from './audio/AudioEngine';
 import { prewarmDemo } from './audio/demoAlbum';
 import { RackView } from './hifi/ui/RackView';
+const ScratchEditor = lazy(() => import('./components/ScratchEditor').then(module => ({ default: module.ScratchEditor })));
 
 function isTyping(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -55,6 +55,7 @@ export default function App() {
   const desktop = useMediaQuery('(min-width: 1024px)');
 
   const view = useHifi((s) => s.view);
+  const scratchEditorAlbumId = usePlayer(s => s.scratchEditorAlbumId);
   useEffect(() => {
     void usePlayer.getState().init();
     startHifiBridge();
@@ -131,7 +132,7 @@ export default function App() {
         </main>
       )}
       <SettingsDialog />
-      <ScratchEditor />
+      {scratchEditorAlbumId && <Suspense fallback={<div role="status" className="fixed bottom-4 left-4 z-50 rounded-xl bg-surface p-3 text-sm shadow">Opening scratch editor…</div>}><ScratchEditor /></Suspense>}
       <NoticeToast />
     </div>
   );

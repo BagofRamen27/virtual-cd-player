@@ -10,16 +10,16 @@
  */
 import * as THREE from 'three';
 import { mulberry32 } from '../../audio/damage';
-import { usePlayer } from '../../state/store';
+import { currentGraphicsProfile } from '../../state/performance';
 
 /** Low quality (phones, low-power laptops) gets smaller generated textures. */
-const lite = () => usePlayer.getState().settings.quality === 'low';
+const lite = () => ['low', '2d'].includes(currentGraphicsProfile());
 
 type Tex = THREE.CanvasTexture;
 const cache = new Map<string, Tex>();
 
 function make(key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, opts: { srgb?: boolean; repeat?: [number, number] } = {}): Tex {
-  const k = `${key}:${opts.repeat?.join('x') ?? ''}`;
+  const k = `${key}:${w}x${h}:${opts.repeat?.join('x') ?? ''}`;
   const hit = cache.get(k);
   if (hit) return hit;
   const c = document.createElement('canvas');

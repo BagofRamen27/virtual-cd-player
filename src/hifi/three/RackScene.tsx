@@ -5,6 +5,9 @@ import { Bloom, EffectComposer, N8AO, Vignette } from '@react-three/postprocessi
 import * as THREE from 'three';
 import { AdaptiveQuality } from '../../three/AdaptiveQuality';
 import { CompileGate } from '../../three/CompileGate';
+import { RenderActivity } from '../../three/RenderActivity';
+import { useGraphicsProfile } from '../../state/performance';
+import { GRAPHICS } from '../../lib/graphicsPolicy';
 import { usePlayer } from '../../state/store';
 import { CDPlayer3D } from '../../three/CDPlayer3D';
 import { WarmEnvironment } from '../../three/WarmEnvironment';
@@ -183,12 +186,12 @@ function DevProbe() {
 export default function RackScene({ view = 'room' }: { view?: RoomView }) {
   const h = useHifi();
   const theme = usePlayer((s) => s.settings.theme);
-  const quality = usePlayer((s) => s.settings.quality);
+  const profile = useGraphicsProfile(), graphics = GRAPHICS[profile];
   const rack = rackOf(h.rackIds);
   const route = currentRoute(h);
   const out = route.output.kind;
   const dark = theme === 'dark';
-  const high = quality === 'high';
+  const high = profile === 'high';
   const look = SPEAKER_LOOKS[h.rackIds.speakers ?? ''];
 
   const [ready, setReady] = useState(false);
@@ -198,14 +201,15 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
     <>
     <Canvas
       frameloop="never"
-      shadows={high ? 'percentage' : false}
-      dpr={high ? [1, 2] : 1}
+      shadows={graphics.shadows ? 'percentage' : false}
+      dpr={[0.75, graphics.dpr]}
       camera={{ position: [0, 2.7, 7.9], fov: 40, near: 0.1, far: 80 }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dark ? 1.15 : 1.1 }}
       aria-hidden="true"
     >
       <AdaptiveQuality />
       <CompileGate onReady={onReady} />
+      <RenderActivity />
       <fog attach="fog" args={[dark ? '#1b1613' : '#eadfce', 16, 34]} />
       {/* Ambient bounce: warm sky from the window, brown bounce from the wooden floor and furniture */}
       <hemisphereLight args={['#e7edf1', '#635b50', dark ? 0.75 : 0.85]} />
@@ -214,8 +218,8 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
         position={[-6, 7, 6]}
         intensity={dark ? 1.8 : 2.2}
         color="#fff1df"
-        castShadow={high}
-        shadow-mapSize={[2048, 2048]}
+        castShadow={graphics.shadows}
+        shadow-mapSize={[graphics.shadowSize, graphics.shadowSize]}
         shadow-bias={-0.0003}
         shadow-normalBias={0.025}
         shadow-camera-left={-8}
@@ -226,7 +230,7 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
       {/* Cool, faint rim from the right to separate the gear from the wall */}
       <directionalLight position={[6, 4, -3]} intensity={0.65} color="#dfe6ff" />
       <Suspense fallback={null}>
-        <WarmEnvironment dark={dark} />
+        <WarmEnvironment dark={dark} resolution={graphics.environment} />
       </Suspense>
       <RoomEnvironment dark={dark} />
 
@@ -271,7 +275,7 @@ export default function RackScene({ view = 'room' }: { view?: RoomView }) {
 
       <FitCamera view={view} sourceId={h.rackIds.source} />
       {import.meta.env.DEV && <DevProbe />}
-      <ContactShadows position={[0, 0.002, 0]} opacity={dark ? 0.6 : 0.4} scale={14} blur={2.4} far={3} resolution={high ? 512 : 256} frames={high ? Infinity : 1} color="#251F1B" />
+      <ContactShadows position={[0, 0.002, 0]} opacity={dark ? 0.6 : 0.4} scale={14} blur={2.4} far={3} resolution={graphics.contact} frames={high ? Infinity : 1} color="#251F1B" />
       {high && (
         <EffectComposer multisampling={0} enableNormalPass={false}>
           <N8AO halfRes aoRadius={0.3} intensity={1.2} distanceFalloff={0.8} color="#262728" />

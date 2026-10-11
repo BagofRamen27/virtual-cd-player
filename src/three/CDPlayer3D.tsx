@@ -1,3 +1,4 @@
+import { toTexture } from './canvasTexture';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox, useCursor } from '@react-three/drei';
@@ -9,7 +10,7 @@ import { generateConditionStrokes } from '../audio/damage';
 import { lcdContent } from '../lib/lcd';
 import { Disc3D } from './Disc3D';
 import { Lid3D } from './Lid3D';
-import { drawGlyph, drawLcd, drawWalnut, toTexture, type Glyph } from './textures';
+import { drawGlyph, drawLcd, drawWalnut, type Glyph } from './textures';
 
 export const BODY_W = 2.7;
 export const BODY_D = 3.3;

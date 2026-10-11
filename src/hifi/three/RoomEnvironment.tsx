@@ -118,20 +118,21 @@ function CdStack() {
   const [textures, setTextures] = useState<(THREE.Texture | null)[]>([]);
   useEffect(() => {
     let alive = true;
+    let owned: (THREE.Texture | null)[] = [];
     void Promise.all(covers.map((a) => loadImage(a.coverUrl!))).then((imgs) => {
       if (!alive) return;
-      setTextures(
-        imgs.map((img) => {
+      owned = imgs.map((img) => {
           if (!img) return null;
           const t = new THREE.Texture(img);
           t.colorSpace = THREE.SRGBColorSpace;
           t.needsUpdate = true;
           return t;
-        }),
-      );
+        });
+      setTextures(owned);
     });
     return () => {
       alive = false;
+      owned.forEach(texture => texture?.dispose());
     };
   }, [covers]);
   if (!covers.length) return null;

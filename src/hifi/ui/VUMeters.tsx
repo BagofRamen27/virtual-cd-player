@@ -12,8 +12,8 @@ export function VUMeters() {
       if (now - last >= 40) {
         last = now;
         const signal = readMeters();
-        setLevels([signal.vuL, signal.vuR]);
-        setReference(signal.vuReferenceDb);
+        setLevels(previous => Math.abs(previous[0] - signal.vuL) < 0.05 && Math.abs(previous[1] - signal.vuR) < 0.05 ? previous : [signal.vuL, signal.vuR]);
+        setReference(previous => Math.abs(previous - signal.vuReferenceDb) < 0.1 ? previous : signal.vuReferenceDb);
       }
       frame = requestAnimationFrame(update);
     };

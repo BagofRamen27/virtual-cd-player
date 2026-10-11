@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { easing } from 'maath';
 import type { Album, ScratchStroke } from '../types';
 import { useImage } from '../lib/useImage';
-import { drawLabel, drawRotationalBlur, drawScratches, LABEL_INNER, LABEL_OUTER, toTexture, type Wear } from './textures';
+import { drawLabel, drawRotationalBlur, drawScratches, LABEL_INNER, LABEL_OUTER, type Wear } from './textures';
+import { toTexture } from './canvasTexture';
 import { usePlayer, type DiscPhase } from '../state/store';
 
 const HOLE = 0.125;

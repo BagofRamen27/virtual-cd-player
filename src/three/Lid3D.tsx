@@ -1,9 +1,10 @@
+import { toTexture } from './canvasTexture';
 import { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox, useCursor } from '@react-three/drei';
 import * as THREE from 'three';
 import { easing } from 'maath';
-import { drawWordmark, toTexture } from './textures';
+import { drawWordmark } from './textures';
 
 interface Lid3DProps {
   open: boolean;

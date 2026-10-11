@@ -46,22 +46,25 @@ export const store = {
     try { await (await db()).put('albums', album); }
     catch { throw new Error('Could not save this CD. Browser storage may be full or unavailable.'); }
   },
-  deleteAlbum: (album: Album) =>
-    safe(async () => {
+  deleteAlbum: (album: Album) => {
+    for (const track of album.tracks) if (track.fileKey) sessionAudio.delete(track.fileKey);
+    return safe(async () => {
       const d = await db();
       await d.delete('albums', album.id);
       await d.delete('damage', album.id);
       for (const t of album.tracks) if (t.fileKey) await d.delete('audio', t.fileKey);
-    }, undefined),
+    }, undefined);
+  },
 
   /** Returns true when the blob was persisted, false when it is only kept for this session. */
   async saveAudio(key: string, blob: Blob): Promise<boolean> {
-    sessionAudio.set(key, blob);
-    if (!idbAvailable()) return false;
+    if (!idbAvailable()) { sessionAudio.set(key, blob); return false; }
     try {
       await (await db()).put('audio', blob, key);
+      sessionAudio.delete(key);
       return true;
     } catch (err) {
+      sessionAudio.set(key, blob);
       console.warn('[discdeck] Could not persist audio (quota or permissions); keeping it for this session only', err);
       return false;
     }

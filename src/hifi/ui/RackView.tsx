@@ -11,6 +11,7 @@ import { Inspector } from './Inspector';
 import { Tutorial } from './Tutorial';
 import { WiringPanel } from './WiringPanel';
 import type { RoomView } from '../three/RackScene';
+import { useGraphicsProfile } from '../../state/performance';
 
 const RackScene = lazy(() => import('../three/RackScene'));
 
@@ -96,7 +97,7 @@ function PresetStrip() {
 
 export function RackView() {
   const webgl = useMemo(() => hasWebGL(), []);
-  const force2D = usePlayer((s) => s.settings.force2D);
+  const force2D = useGraphicsProfile() === '2d';
   const enabled = useHifi((s) => s.enabled);
   const setEnabled = useHifi((s) => s.setEnabled);
   const desktop = useMediaQuery('(min-width: 1024px)');

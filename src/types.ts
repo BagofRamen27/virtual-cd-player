@@ -84,6 +84,8 @@ export interface DamageEvent {
 }
 
 export interface Settings {
+  graphicsMode?: import('./lib/graphicsPolicy').GraphicsMode;
+  performanceDiagnostics?: boolean;
   theme: 'light' | 'dark';
   quality: 'high' | 'low';
   force2D: boolean;

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { defaultQuality, graphicsInfo } from '../lib/webgl';
+import { migrateGraphics } from '../lib/graphicsPolicy';
 import type { Album, ConditionLevel, DamageEventType, DamageProfile, PlayerState, ScratchStroke, Settings } from '../types';
 import { computeDamageEvents, newDamageProfile } from '../audio/damage';
 import { demoAlbum } from '../audio/demoAlbum';
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: Settings = {
   theme: typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   // First visit: pick quality from the device (phones / no GPU acceleration get the light path).
   ...defaultQuality(),
+  graphicsMode: 'auto',
   sounds: false,
   volume: 0.8,
 };
@@ -210,7 +212,7 @@ export const usePlayer = create<PlayerStore>((set, get) => {
       for (const a of stored.filter((a) => a.sessionOnly)) void db.deleteAlbum(a);
       const demo = demoAlbum();
       set({
-        settings: { ...DEFAULT_SETTINGS, ...settings },
+        settings: { ...DEFAULT_SETTINGS, ...settings, graphicsMode: migrateGraphics(settings) },
         albums: [demo, ...usable.sort((a, b) => b.addedAt - a.addedAt)],
         damage: Object.fromEntries(damage.map((d) => [d.albumId, d])),
         selectedAlbumId: demo.id,
@@ -229,6 +231,11 @@ export const usePlayer = create<PlayerStore>((set, get) => {
     },
     updateSettings(patch) {
       const settings = { ...get().settings, ...patch };
+      if (patch.graphicsMode) {
+        settings.force2D = patch.graphicsMode === '2d';
+        settings.quality = patch.graphicsMode === 'high' ? 'high' : 'low';
+      } else if (patch.force2D !== undefined) settings.graphicsMode = patch.force2D ? '2d' : 'auto';
+      else if (patch.quality) settings.graphicsMode = patch.quality;
       set({ settings });
       void db.saveSettings(settings);
     },

@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import type { Album, ScratchStroke } from '../types';
 import { mulberry32, hashString } from '../audio/damage';
 
@@ -11,13 +10,6 @@ function canvas(w: number, h = w): [HTMLCanvasElement, CanvasRenderingContext2D]
   c.width = w;
   c.height = h;
   return [c, c.getContext('2d')!];
-}
-
-export function toTexture(c: HTMLCanvasElement, srgb = true): THREE.CanvasTexture {
-  const t = new THREE.CanvasTexture(c);
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  return t;
 }
 
 /** Disc-space polar (r in disc radii, a in radians) → canvas pixels for a full-disc square map. */

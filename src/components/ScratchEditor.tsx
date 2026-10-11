@@ -10,6 +10,8 @@ import { DiscMeshes } from '../three/Disc3D';
 import { WarmEnvironment } from '../three/WarmEnvironment';
 import { CONDITION_LABELS } from '../types';
 import { Button, Dialog, Icon } from './ui';
+import { useGraphicsProfile } from '../state/performance';
+import { GRAPHICS } from '../lib/graphicsPolicy';
 
 type Tool = 'paint' | 'erase' | 'rotate';
 
@@ -33,6 +35,7 @@ function locate(album: Album, r: number): string {
 }
 
 function EditorBody({ album }: { album: Album }) {
+  const graphics = useGraphicsProfile();
   const stored = usePlayer((s) => s.damage[album.id]);
   const profile = useMemo(() => stored ?? newDamageProfile(album.id), [stored, album.id]);
   const { setStrokes, cleanDisc } = usePlayer.getState();
@@ -112,7 +115,7 @@ function EditorBody({ album }: { album: Album }) {
           className="relative aspect-square w-full overflow-hidden rounded-2xl"
           style={{ background: 'var(--stage)', cursor: tool === 'rotate' ? 'grab' : 'crosshair', touchAction: 'none' }}
         >
-          <Canvas camera={{ position: [0, 2.9, 0.001], fov: 42 }} dpr={[1, 1.5]} aria-hidden="true">
+          {hasWebGL() && graphics !== '2d' ? <Canvas frameloop="demand" camera={{ position: [0, 2.9, 0.001], fov: 42 }} dpr={[0.75, Math.min(1.5, GRAPHICS[graphics].dpr)]} aria-hidden="true">
             <ambientLight intensity={0.6} color="#ffe6cc" />
             <directionalLight position={[-2, 4, 2]} intensity={1.6} color="#ffd6a3" />
             <WarmEnvironment resolution={128} />
@@ -120,7 +123,7 @@ function EditorBody({ album }: { album: Album }) {
               <DiscMeshes album={album} strokes={all} wear={{ condition: profile.condition, seed: profile.seed }} highlight={draft?.id} onSurfacePointer={handlers} />
             </group>
             <OrbitControls enabled={tool === 'rotate'} enablePan={false} minDistance={1.8} maxDistance={4.5} />
-          </Canvas>
+          </Canvas> : <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted">Lightweight scratch editor. Use the position and angle controls to add scratches precisely, or choose a disc condition.</div>}
         </div>
         <p className="mt-2 h-4 text-xs text-muted" aria-live="polite">
           {hover || 'Inner edge = start of the album, outer edge = the end. Arced scratches skip; radial ones click.'}
@@ -205,7 +208,7 @@ export function ScratchEditor() {
   const close = () => setUi({ scratchEditorAlbumId: null });
   return (
     <Dialog open={!!albumId} onClose={close} title={album ? `Scratch editor · ${album.title}` : 'Scratch editor'} wide>
-      {album && (hasWebGL() ? <EditorBody album={album} /> : <p className="text-sm text-muted">The scratch editor needs WebGL. You can still set the disc condition from the Now Playing panel.</p>)}
+      {album && <EditorBody album={album} />}
     </Dialog>
   );
 }

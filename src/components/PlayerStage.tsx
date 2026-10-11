@@ -6,6 +6,7 @@ import { DRAG_TYPE } from './JewelCase';
 import { Player2D } from './Player2D';
 import { TransportControls } from './TransportControls';
 import { Icon } from './ui';
+import { useGraphicsProfile } from '../state/performance';
 
 const Stage = lazy(() => import('../three/Stage'));
 
@@ -35,7 +36,7 @@ function Hint() {
 }
 
 export function PlayerStage() {
-  const force2D = usePlayer((s) => s.settings.force2D);
+  const force2D = useGraphicsProfile() === '2d';
   const state = usePlayer((s) => s.state);
   const lidOpen = usePlayer((s) => s.lidOpen);
   const trackIndex = usePlayer((s) => s.trackIndex);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
@@ -14,7 +15,7 @@ export const DECK_JACKS: Record<string, [number, number, number]> = { 'line-out'
 /** Model-specific silhouettes and loading mechanisms; transport operates the actual player. */
 export function CDDeck3D() {
   const source = rackOf(useHifi((s) => s.rackIds)).source!;
-  const p = usePlayer();
+  const p = usePlayer(useShallow(s => ({ position: Math.floor(s.position), powered: s.powered, insertedAlbumId: s.insertedAlbumId, trackIndex: s.trackIndex, lidOpen: s.lidOpen, togglePlay: s.togglePlay, stop: s.stop, toggleLid: s.toggleLid, prev: s.prev, next: s.next })));
   const topLoader = source.id === 'philips-cd100';
   const silver = topLoader;
   const width = topLoader ? 1.9 : 2.4;
