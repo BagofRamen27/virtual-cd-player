@@ -134,6 +134,13 @@ class ScratchProcessor extends AudioWorkletProcessor {
     const nOut = out.length;
     const nIn = this.channels.length;
 
+    // A paused/unloaded quantum is entirely silent; keep fade-out handling below
+    // for the quantum in which playback is still coming to a stop.
+    if (!this.running || !nIn) {
+      for (let c = 0; c < nOut; c++) out[c].fill(0);
+      return true;
+    }
+
     for (let k = 0; k < frames; k++) {
       if (!this.running || !nIn) {
         for (let c = 0; c < nOut; c++) out[c][k] = 0;

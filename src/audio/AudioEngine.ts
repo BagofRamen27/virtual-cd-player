@@ -21,6 +21,10 @@ export class AudioEngine {
   private params: DspParams = FLAT_PARAMS;
   private starting: Promise<void> | null = null;
   private listeners = new Set<(m: EngineMessage) => void>();
+  private trackBytes = 0;
+  private cachedBytes = 0;
+  get diagnostics() { return { context: this.ctx?.state ?? this.pendingCtx?.state ?? 'not started', sampleRate: this.sampleRate, trackBytes: this.trackBytes, cachedBytes: this.cachedBytes }; }
+  setCachedBytes(bytes: number) { this.cachedBytes = bytes; }
 
   get sampleRate(): number {
     return this.ctx?.sampleRate ?? 44100;
@@ -110,10 +114,11 @@ export class AudioEngine {
     return ctx.decodeAudioData(data);
   }
 
-  async loadBuffer(buffer: AudioBuffer): Promise<void> {
+  async loadBuffer(buffer: AudioBuffer, from = 0, to = buffer.length): Promise<void> {
     await this.ensure();
     const channels: Float32Array[] = [];
-    for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c).slice());
+    for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c).slice(from, to));
+    this.trackBytes = (to - from) * buffer.numberOfChannels * 4;
     this.node!.port.postMessage({ type: 'load', channels }, channels.map((c) => c.buffer));
   }
 
@@ -148,6 +153,8 @@ export class AudioEngine {
   }
 
   unload(): void {
+    this.trackBytes = 0;
+    this.cachedBytes = 0;
     this.node?.port.postMessage({ type: 'unload' });
   }
 

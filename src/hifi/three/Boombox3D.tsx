@@ -1,3 +1,4 @@
+import { toTexture } from '../../three/canvasTexture';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
@@ -7,7 +8,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../../state/store';
 import { lcdContent } from '../../lib/lcd';
 import { DiscMeshes } from '../../three/Disc3D';
-import { drawLcd, toTexture } from '../../three/textures';
+import { drawLcd } from '../../three/textures';
 import { readMeters } from '../meters';
 import { useHifi } from '../store';
 import { Knob3D, PanelButton } from './Knob3D';

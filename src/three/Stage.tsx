@@ -5,6 +5,9 @@ type OrbitControlsImpl = ComponentRef<typeof OrbitControls>;
 import * as THREE from 'three';
 import { AdaptiveQuality } from './AdaptiveQuality';
 import { CompileGate } from './CompileGate';
+import { RenderActivity } from './RenderActivity';
+import { useGraphicsProfile } from '../state/performance';
+import { GRAPHICS } from '../lib/graphicsPolicy';
 import { usePlayer } from '../state/store';
 import { CDPlayer3D } from './CDPlayer3D';
 import { WarmEnvironment } from './WarmEnvironment';
@@ -18,24 +21,25 @@ function ResetOnToken({ controls }: { controls: React.RefObject<OrbitControlsImp
 }
 
 export default function Stage() {
-  const quality = usePlayer((s) => s.settings.quality);
+  const profile = useGraphicsProfile(), graphics = GRAPHICS[profile];
   const theme = usePlayer((s) => s.settings.theme);
   const controls = useRef<OrbitControlsImpl | null>(null);
-  const high = quality === 'high';
+  const high = profile === 'high';
   const narrow = typeof window !== 'undefined' && window.innerWidth < 640;
   const floor = theme === 'dark' ? '#2c241f' : '#E4D8C6';
 
   return (
     <Canvas
       frameloop="never"
-      shadows={high ? 'percentage' : false}
-      dpr={high ? [1, 2] : 1}
+      shadows={graphics.shadows ? 'percentage' : false}
+      dpr={[0.75, graphics.dpr]}
       camera={{ position: narrow ? [0, 3.7, 4.3] : [0, 4.4, 5.2], fov: 34, near: 0.1, far: 60 }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: theme === 'dark' ? 0.95 : 1.05 }}
       aria-hidden="true"
     >
       <AdaptiveQuality />
       <CompileGate />
+      <RenderActivity />
       <fog attach="fog" args={[floor, 9, 20]} />
       <ambientLight intensity={theme === 'dark' ? 0.25 : 0.4} color="#ffe6cc" />
       {/* Key: low golden-hour sun from the left window */}
@@ -43,8 +47,8 @@ export default function Stage() {
         position={[-4, 6.5, 3.2]}
         intensity={theme === 'dark' ? 1.4 : 2.2}
         color="#ffd6a3"
-        castShadow={high}
-        shadow-mapSize={[2048, 2048]}
+        castShadow={graphics.shadows}
+        shadow-mapSize={[graphics.shadowSize, graphics.shadowSize]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
         shadow-camera-left={-4}
@@ -56,7 +60,7 @@ export default function Stage() {
       <pointLight position={[3.2, 2.6, -2.4]} intensity={theme === 'dark' ? 9 : 5} color="#ffb070" distance={14} decay={2} />
 
       <Suspense fallback={null}>
-        <WarmEnvironment dark={theme === 'dark'} />
+        <WarmEnvironment dark={theme === 'dark'} resolution={graphics.environment} />
       </Suspense>
 
       <group position={[0, 0, 0]}>
@@ -67,7 +71,7 @@ export default function Stage() {
         <circleGeometry args={[24, 64]} />
         <meshStandardMaterial color={floor} roughness={0.95} />
       </mesh>
-      <ContactShadows position={[0, 0.001, 0]} opacity={theme === 'dark' ? 0.7 : 0.45} scale={9} blur={2.6} far={2.5} resolution={high ? 512 : 256} frames={high ? Infinity : 1} color="#251F1B" />
+      <ContactShadows position={[0, 0.001, 0]} opacity={theme === 'dark' ? 0.7 : 0.45} scale={9} blur={2.6} far={2.5} resolution={graphics.contact} frames={high ? Infinity : 1} color="#251F1B" />
 
       <OrbitControls
         ref={controls}

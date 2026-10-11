@@ -31,6 +31,15 @@ test('loading a clean track clears damage and pending skip state', () => {
   assert.equal(p.pendingJump, null);
 });
 
+test('idle worklet clears every output channel without moving the playhead', () => {
+  const p = processor();
+  const left = new Float32Array(128).fill(1), right = new Float32Array(128).fill(1);
+  p.pos = 42;
+  assert.equal(p.process([], [[left, right]]), true);
+  assert.equal(p.pos, 42);
+  assert.ok(left.every(value => value === 0) && right.every(value => value === 0));
+});
+
 test('a paused seek replaces an old pending jump before playback resumes', () => {
   const p = processor();
   p.onMessage({ type: 'load', channels: [new Float32Array(1000)] });

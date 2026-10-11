@@ -1,6 +1,9 @@
 import { usePlayer } from '../state/store';
 import { store } from '../db/idb';
 import { Button, Dialog } from './ui';
+import { PerformanceDiagnostics } from './PerformanceDiagnostics';
+import type { GraphicsMode } from '../lib/graphicsPolicy';
+import { graphicsCeiling, usePerformance } from '../state/performance';
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -51,19 +54,27 @@ export function SettingsDialog() {
         </label>
         <label className="flex items-center justify-between gap-4 py-3">
           <span>
-            <span className="block text-sm">3D quality</span>
-            <span className="block text-xs text-muted">Low disables real-time shadows and caps resolution.</span>
+            <span className="block text-sm">Graphics profile</span>
+            <span className="block text-xs text-muted">Automatic adapts graphics to this device. Audio quality stays the same.</span>
           </span>
           <select
-            value={settings.quality}
-            onChange={(e) => updateSettings({ quality: e.target.value as 'high' | 'low' })}
+            value={settings.graphicsMode ?? (settings.force2D ? '2d' : settings.quality)}
+            onChange={(e) => {
+              if (e.target.value === 'auto') usePerformance.setState({ automatic: graphicsCeiling, reason: 'Automatic graphics restarted from device capabilities.' });
+              updateSettings({ graphicsMode: e.target.value as GraphicsMode });
+            }}
             className="h-9 rounded-full border border-line bg-surface px-3 text-sm"
           >
+            <option value="auto">Automatic</option>
             <option value="high">High</option>
+            <option value="balanced">Balanced</option>
             <option value="low">Low</option>
+            <option value="2d">2D · lightweight</option>
           </select>
         </label>
-        <Toggle label="2D player" hint="Use a lightweight flat player instead of the 3D stage." checked={settings.force2D} onChange={(v) => updateSettings({ force2D: v })} />
+        <Toggle label="Performance diagnostics" hint="Show local rendering and audio status while Settings is open." checked={!!settings.performanceDiagnostics} onChange={value => updateSettings({ performanceDiagnostics: value })} />
+        {open && settings.performanceDiagnostics && <PerformanceDiagnostics />}
+        <div className="py-3"><Button size="sm" onClick={() => updateSettings({ graphicsMode: '2d' })}>Switch to Lightweight Mode</Button></div>
         <Toggle label="Mechanical sounds" hint="Quiet button clicks and lid sounds." checked={settings.sounds} onChange={(v) => updateSettings({ sounds: v })} />
       </section>
 
